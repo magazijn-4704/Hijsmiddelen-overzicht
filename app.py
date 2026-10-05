@@ -75,9 +75,9 @@ with links:
                 for oid in sel_ids:
                     idx = df_actueel[df_actueel['id'] == oid].index
                     acties = []
-                    if n_loc != "Geen wijziging" and n_loc != df_actueel.at[idx, 'locatie']:
+                    if n_loc != "Geen wijziging" and n_loc != df_actueel.at[idx, 'locatie'].values[0]:
                         df_actueel.at[idx, 'locatie'] = n_loc; acties.append(f"Naar {n_loc}")
-                    if n_stat != "Geen wijziging" and n_stat != df_actueel.at[idx, 'status']:
+                    if n_stat != "Geen wijziging" and n_stat != df_actueel.at[idx, 'status'].values[0]:
                         df_actueel.at[idx, 'status'] = n_stat; acties.append(f"Status: {n_stat}")
                     if k_opt and n_stat != "Afgekeurd (Gearchiveerd)":
                         n_k = (u_dt + timedelta(days=365)).strftime("%d-%m-%Y")
@@ -86,7 +86,7 @@ with links:
                         n_b = (u_dt + timedelta(days=365 if "1 jaar" in g_int else 4*365)).strftime("%d-%m-%Y") if "Geen" not in g_int else ""
                         df_actueel.at[idx, 'beproevingsdatum'] = n_b; acties.append(f"Beproefd tot {n_b}")
                     if acties:
-                        nu_log = pd.DataFrame([{'datum': datetime.now().strftime("%d-%m-%Y %H:%M"), 'object_id': oid, 'type': df_actueel.at[idx, 'type'], 'actie': " / ".join(acties), 'details': 'Online'}])
+                        nu_log = pd.DataFrame([{'datum': datetime.now().strftime("%d-%m-%Y %H:%M"), 'object_id': oid, 'type': df_actueel.at[idx, 'type'].values[0], 'actie': " / ".join(acties), 'details': 'Online'}])
                         df_historie = pd.concat([df_historie, nu_log], ignore_index=True)
                 sla_data_op(df_actueel, df_historie)
                 st.success("✅ Succesvol bijgewerkt!")
@@ -118,7 +118,7 @@ with rechts:
     if zoek and not df_actueel.empty:
         df_g = df_g[df_g['id'].astype(str).str.contains(zoek,case=False) | df_g['type'].astype(str).str.contains(zoek,case=False) | df_g['locatie'].astype(str).str.contains(zoek,case=False)]
     
-    t1, t2, t3, t4 = st.tabs(["Actuele Status", "Archief", "Status Overzicht", "Volledige Historie"])
+    t1, t2, t3, t4 = st.tabs(["Actuele Status", "Archief", "Locatie Grafiek", "Volledige Historie"])
     
     with t1:
         df_r = df_g[df_g['status'] != "Afgekeurd (Gearchiveerd)"] if not df_g.empty else pd.DataFrame()
@@ -130,30 +130,24 @@ with rechts:
         df_a = df_g[df_g['status'] == "Afgekeurd (Gearchiveerd)"] if not df_g.empty else pd.DataFrame()
         if not df_a.empty:
             st.dataframe(df_a[['id', 'type', 'locatie', 'keuringsdatum', 'beproevingsdatum', 'status']], hide_index=True, use_container_width=True)
+            
+            # APART STATUS OVERZICHT: Grafiek speciaal voor wat er in het archief ligt!
+            st.write("---")
+            st.write("📊 **Aantal afgekeurde hijsmiddelen per type product in het archief:**")
+            type_counts_archief = df_a['type'].value_counts()
+            st.bar_chart(type_counts_archief)
+            st.write(type_counts_archief)
         else: st.info("Archief is leeg.")
         
     with t3:
         if not df_actueel.empty:
-            st.write("**Visueel overzicht van alle materiaalstatussen:**")
-            c_ac = len(df_actueel[df_actueel['status'] == 'Actief'])
-            c_ar = len(df_actueel[df_actueel['status'] == 'Afgekeurd (Gearchiveerd)'])
-            c_ve = len(df_actueel[df_actueel['status'] == 'Niet gevonden (Vermist)'])
-            tot = len(df_actueel)
-            p_ac = (c_ac / tot) * 100 if tot > 0 else 0
-            p_ar = (c_ar / tot) * 100 if tot > 0 else 0
-            p_ve = (c_ve / tot) * 100 if tot > 0 else 0
-            
-            # GEBOUWD IN 100% VEILIGE EN GEKLEURDE HTML BALKEN (GROEN, ZWART, ORANJE)
-            h_s = f"""<div style="font-family:sans-serif;margin-top:10px;">
-                <p>🟢 <b>Actieve middelen:</b> {c_ac} stuks</p>
-                <div style="background:#ddd;border-radius:5px;width:100%;margin-bottom:15px;"><div style="background:#28a745;width:{p_ac}%;height:20px;border-radius:5px;text-align:center;color:white;font-size:12px;line-height:20px;">{int(p_ac)}%</div></div>
-                <p>⚫ <b>Afgekeurd (In archief):</b> {c_ar} stuks</p>
-                <div style="background:#ddd;border-radius:5px;width:100%;margin-bottom:15px;"><div style="background:#000000;width:{p_ar}%;height:20px;border-radius:5px;text-align:center;color:white;font-size:12px;line-height:20px;">{int(p_ar)}%</div></div>
-                <p>🟠 <b>Niet gevonden (Vermist):</b> {c_ve} stuks</p>
-                <div style="background:#ddd;border-radius:5px;width:100%;margin-bottom:15px;"><div style="background:#ff9800;width:{p_ve}%;height:20px;border-radius:5px;text-align:center;color:white;font-size:12px;line-height:20px;">{int(p_ve)}%</div></div>
-            </div>"""
-            st.markdown(h_s, unsafe_allow_html=True)
-        else: st.info("Geen data beschikbaar.")
+            st.write("**Aantal actieve hijsmiddelen per locatie (Vlootnummer):**")
+            df_actief = df_actueel[df_actueel['status'] != "Afgekeurd (Gearchiveerd)"]
+            if not df_actief.empty:
+                loc_counts = df_actief['locatie'].value_counts()
+                st.bar_chart(loc_counts)
+                st.write(loc_counts)
+        else: st.info("Geen data voor grafiek.")
             
     with t4:
         st.dataframe(df_historie.sort_index(ascending=False), use_container_width=True, hide_index=True)
