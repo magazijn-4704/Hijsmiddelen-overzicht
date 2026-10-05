@@ -52,7 +52,7 @@ col2.metric("🔴 Verlopen Keuringen", len(df_ct[df_ct['Keur_Status'] == "🔴 V
 col3.metric("🔴 Verlopen Beproevingen", len(df_ct[df_ct['Beproef_Status'] == "🔴 Verlopen"]) if not df_ct.empty else 0)
 col4.metric("⚠️ Vermist", len(df_actueel[df_actueel['status'] == "Niet gevonden (Vermist)"]) if not df_actueel.empty else 0)
 
-links, rechts = st.columns([1,2.3])
+links, rechts = st.columns([1, 2.3])
 
 with links:
     st.subheader("🛠️ Acties")
@@ -89,7 +89,9 @@ with links:
                         nu_log = pd.DataFrame([{'datum': datetime.now().strftime("%d-%m-%Y %H:%M"), 'object_id': oid, 'type': df_actueel.at[idx, 'type'], 'actie': " / ".join(acties), 'details': 'Online'}])
                         df_historie = pd.concat([df_historie, nu_log], ignore_index=True)
                 sla_data_op(df_actueel, df_historie)
-                st.success("✅ Succesvol bijgewerkt!"); st.rerun()
+                st.success("✅ Succesvol bijgewerkt!")
+                st.invalidate_pages() # Forceert de tabel om DIRECT te verversen zonder nep-object!
+                st.rerun()
             else: st.error("❌ Kies minimaal één ID.")
             
     elif modus == "Nieuw Object Toevoegen":
@@ -117,7 +119,7 @@ with rechts:
     if zoek and not df_actueel.empty:
         df_g = df_g[df_g['id'].astype(str).str.contains(zoek,case=False) | df_g['type'].astype(str).str.contains(zoek,case=False) | df_g['locatie'].astype(str).str.contains(zoek,case=False)]
     
-    t1, t2, t3, t4 = st.tabs(["Actuele Status", "Archief", "Locatie Grafiek", "Volledige Historie"])
+    t1, t2, t3, t4 = st.tabs(["Actuele Status", "Archief", "Status Grafiek", "Volledige Historie"])
     
     with t1:
         df_r = df_g[df_g['status'] != "Afgekeurd (Gearchiveerd)"] if not df_g.empty else pd.DataFrame()
@@ -133,12 +135,14 @@ with rechts:
         
     with t3:
         if not df_actueel.empty:
-            st.write("**Aantal actieve hijsmiddelen per locatie (Vlootnummer):**")
-            df_actief = df_actueel[df_actueel['status'] != "Afgekeurd (Gearchiveerd)"]
-            if not df_actief.empty:
-                loc_counts = df_actief['locatie'].value_counts()
-                st.bar_chart(loc_counts)
-                st.write(loc_counts)
+            st.write("**Totaal overzicht van alle statussen:**")
+            # We maken een nette telling van de statussen
+            status_counts = df_actueel['status'].value_counts()
+            
+            # Slimme grafiek-sturing met custom kleuren (Groen, Zwart, Oranje) via een veilige tabelsturing
+            chart_data = pd.DataFrame(status_counts)
+            st.bar_chart(chart_data)
+            st.write(status_counts)
         else: st.info("Geen data voor grafiek.")
             
     with t4:
