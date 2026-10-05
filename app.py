@@ -73,7 +73,7 @@ with links:
         if st.button("Wijzigingen toepassen"):
             if sel_ids:
                 for oid in sel_ids:
-                    idx = df_actueel[df_actueel['id'] == oid].index[0]
+                    idx = df_actueel[df_actueel['id'] == oid].index
                     acties = []
                     if n_loc != "Geen wijziging" and n_loc != df_actueel.at[idx, 'locatie']:
                         df_actueel.at[idx, 'locatie'] = n_loc; acties.append(f"Naar {n_loc}")
@@ -90,7 +90,6 @@ with links:
                         df_historie = pd.concat([df_historie, nu_log], ignore_index=True)
                 sla_data_op(df_actueel, df_historie)
                 st.success("✅ Succesvol bijgewerkt!")
-                st.invalidate_pages() # Forceert de tabel om DIRECT te verversen zonder nep-object!
                 st.rerun()
             else: st.error("❌ Kies minimaal één ID.")
             
@@ -135,14 +134,21 @@ with rechts:
         
     with t3:
         if not df_actueel.empty:
-            st.write("**Totaal overzicht van alle statussen:**")
-            # We maken een nette telling van de statussen
-            status_counts = df_actueel['status'].value_counts()
+            st.write("**Totaal overzicht van alle materiaalstatussen:**")
             
-            # Slimme grafiek-sturing met custom kleuren (Groen, Zwart, Oranje) via een veilige tabelsturing
-            chart_data = pd.DataFrame(status_counts)
-            st.bar_chart(chart_data)
-            st.write(status_counts)
+            # Maak een simpele, robuuste telling van de statussen
+            telling = df_actueel['status'].value_counts()
+            
+            # Maak een tabelletje met vaste kleuren: Actief=Groen, Gearchiveerd=Zwart, Vermist=Oranje
+            kleuren = []
+            for status in telling.index:
+                if status == "Actief": kleuren.append("#28a745")
+                elif status == "Afgekeurd (Gearchiveerd)": kleuren.append("#000000")
+                else: kleuren.append("#ff9800")
+            
+            # Teken de grafiek met de juiste kleuren per balk!
+            st.bar_chart(telling, color=kleuren)
+            st.write(telling)
         else: st.info("Geen data voor grafiek.")
             
     with t4:
