@@ -73,7 +73,7 @@ with links:
         if st.button("Wijzigingen toepassen"):
             if sel_ids:
                 for oid in sel_ids:
-                    idx = df_actueel[df_actueel['id'] == oid].index
+                    idx = df_actueel[df_actueel['id'] == oid].index[0]
                     acties = []
                     if n_loc != "Geen wijziging" and n_loc != df_actueel.at[idx, 'locatie']:
                         df_actueel.at[idx, 'locatie'] = n_loc; acties.append(f"Naar {n_loc}")
