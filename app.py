@@ -59,7 +59,10 @@ with links:
     modus = st.radio("Wat wil je doen?", ["Objecten Bewerken", "Nieuw Object Toevoegen"])
     INTERVALS = ["Geen beproeving (Textiel)", "Jaarlijks (1 jaar)", "Om de 4 jaar (Staal)"]
     STATUS_OPTIES = ["Actief", "Afgekeurd (Gearchiveerd)", "Niet gevonden (Vermist)"]
-    basis_locs = sorted(list(set(['Magazijn A', 'Auto 314', 'Auto 316', 'Auto 317', 'Werkplaats'] + df_actueel['locatie'].tolist() if not df_actueel.empty else [])))
+    
+    # HIER ZITTEN DE LOCATIES NÚ ALTIJD VAST INGEBAKKEN:
+    vaste_basis_locaties = ['Magazijn A', 'Auto 314', 'Auto 316', 'Auto 317', 'Werkplaats', 'Gearchiveerd', 'Vermist']
+    basis_locs = sorted(list(set(vaste_basis_locaties + df_actueel['locatie'].tolist() if not df_actueel.empty else vaste_basis_locaties)))
     
     if modus == "Objecten Bewerken" and not df_actueel.empty:
         sel_ids = st.multiselect("Stap 1: Kies ID-nummers:", df_actueel['id'].tolist(), key="m_sel")
@@ -84,8 +87,11 @@ with links:
                         v_loc = n_loc if n_loc != "Geen wijziging" else h_loc
                         v_stat = n_stat if n_stat != "Geen wijziging" else h_stat
                         
+                        # Automatische locatiewissel bij statuswijziging
                         if v_stat == "Afgekeurd (Gearchiveerd)":
                             v_loc = "Gearchiveerd"
+                        elif v_stat == "Niet gevonden (Vermist)":
+                            v_loc = "Vermist"
                             
                         v_keur = (u_dt + timedelta(days=365)).strftime("%d-%m-%Y") if (k_opt and v_stat != "Afgekeurd (Gearchiveerd)") else h_keur
                         
