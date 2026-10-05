@@ -73,21 +73,33 @@ with links:
         if st.button("Wijzigingen toepassen"):
             if sel_ids:
                 for oid in sel_ids:
-                    idx = df_actueel[df_actueel['id'] == oid].index
-                    acties = []
-                    if n_loc != "Geen wijziging" and n_loc != df_actueel.at[idx, 'locatie'].values[0]:
-                        df_actueel.at[idx, 'locatie'] = n_loc; acties.append(f"Naar {n_loc}")
-                    if n_stat != "Geen wijziging" and n_stat != df_actueel.at[idx, 'status'].values[0]:
-                        df_actueel.at[idx, 'status'] = n_stat; acties.append(f"Status: {n_stat}")
-                    if k_opt and n_stat != "Afgekeurd (Gearchiveerd)":
-                        n_k = (u_dt + timedelta(days=365)).strftime("%d-%m-%Y")
-                        df_actueel.at[idx, 'keuringsdatum'] = n_k; acties.append(f"Gekeurd tot {n_k}")
-                    if b_opt and n_stat != "Afgekeurd (Gearchiveerd)":
-                        n_b = (u_dt + timedelta(days=365 if "1 jaar" in g_int else 4*365)).strftime("%d-%m-%Y") if "Geen" not in g_int else ""
-                        df_actueel.at[idx, 'beproevingsdatum'] = n_b; acties.append(f"Beproefd tot {n_b}")
-                    if acties:
-                        nu_log = pd.DataFrame([{'datum': datetime.now().strftime("%d-%m-%Y %H:%M"), 'object_id': oid, 'type': df_actueel.at[idx, 'type'].values[0], 'actie': " / ".join(acties), 'details': 'Online'}])
-                        df_historie = pd.concat([df_historie, nu_log], ignore_index=True)
+                    # GEBRUIKT NU .LOC VOOR EEN 100% STABIELE UPDATE ZONDER INDEXFOUTEN
+                    masker = df_actueel['id'] == oid
+                    if masker.any():
+                        h_loc = df_actueel.loc[masker, 'locatie'].values[0]
+                        h_stat = df_actueel.loc[masker, 'status'].values[0]
+                        h_type = df_actueel.loc[masker, 'type'].values[0]
+                        acties = []
+                        
+                        if n_loc != "Geen wijziging" and n_loc != h_loc:
+                            df_actueel.loc[masker, 'locatie'] = n_loc
+                            acties.append(f"Naar {n_loc}")
+                        if n_stat != "Geen wijziging" and n_stat != h_stat:
+                            df_actueel.loc[masker, 'status'] = n_stat
+                            acties.append(f"Status: {n_stat}")
+                        if k_opt and n_stat != "Afgekeurd (Gearchiveerd)":
+                            n_k = (u_dt + timedelta(days=365)).strftime("%d-%m-%Y")
+                            df_actueel.loc[masker, 'keuringsdatum'] = n_k
+                            acties.append(f"Gekeurd tot {n_k}")
+                        if b_opt and n_stat != "Afgekeurd (Gearchiveerd)":
+                            n_b = (u_dt + timedelta(days=365 if "1 jaar" in g_int else 4*365)).strftime("%d-%m-%Y") if "Geen" not in g_int else ""
+                            df_actueel.loc[masker, 'beproevingsdatum'] = n_b
+                            acties.append(f"Beproefd tot {n_b}")
+                        
+                        if acties:
+                            nu_log = pd.DataFrame([{'datum': datetime.now().strftime("%d-%m-%Y %H:%M"), 'object_id': oid, 'type': h_type, 'actie': " / ".join(acties), 'details': 'Online'}])
+                            df_historie = pd.concat([df_historie, nu_log], ignore_index=True)
+                            
                 sla_data_op(df_actueel, df_historie)
                 st.success("✅ Succesvol bijgewerkt!")
                 st.rerun()
@@ -130,8 +142,6 @@ with rechts:
         df_a = df_g[df_g['status'] == "Afgekeurd (Gearchiveerd)"] if not df_g.empty else pd.DataFrame()
         if not df_a.empty:
             st.dataframe(df_a[['id', 'type', 'locatie', 'keuringsdatum', 'beproevingsdatum', 'status']], hide_index=True, use_container_width=True)
-            
-            # APART STATUS OVERZICHT: Grafiek speciaal voor wat er in het archief ligt!
             st.write("---")
             st.write("📊 **Aantal afgekeurde hijsmiddelen per type product in het archief:**")
             type_counts_archief = df_a['type'].value_counts()
