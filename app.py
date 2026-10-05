@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 
 EXCEL_FILE = "hijsmiddelen_database.xlsx"
 
-# 1. INITIALISATIE: Maak Excel aan als deze nog niet bestaat
 if not os.path.exists(EXCEL_FILE):
     df_actueel = pd.DataFrame(columns=['id', 'type', 'locatie', 'keuringsdatum', 'beproevingsdatum', 'status'])
     df_historie = pd.DataFrame(columns=['datum', 'object_id', 'type', 'actie', 'details'])
@@ -14,7 +13,6 @@ if not os.path.exists(EXCEL_FILE):
         df_actueel.to_excel(writer, sheet_name='actueel', index=False)
         df_historie.to_excel(writer, sheet_name='historie', index=False)
 
-# Functies om data te laden en te bewaren
 def laad_data(sheet):
     return pd.read_excel(EXCEL_FILE, sheet_name=sheet).fillna("")
 
@@ -25,10 +23,8 @@ def sla_data_op(df_actuel, df_hist):
 
 df_actueel = laad_data('actueel')
 df_historie = laad_data('historie')
-
 vandaag = datetime.now().date()
 
-# Statuscontrole voor de kleuren
 def check_status(row, is_bep=False):
     if row['status'] == "Afgekeurd (Gearchiveerd)": return "⚫ Gearchiveerd"
     dt_str = row['beproevingsdatum'] if is_bep else row['keuringsdatum']
@@ -47,9 +43,8 @@ else:
     df_actueel['Keur_Status'], df_actueel['Beproef_Status'] = pd.Series(dtype='str'), pd.Series(dtype='str')
 
 st.set_page_config(layout="wide", page_title="Hijsmiddelen Beheer")
-st.title("🏗️ Centraal Hijsmiddelen Dashboard")
+st.title("🏗️ Hijsmiddelen Dashboard")
 
-# KPI KAARTEN
 df_ct = df_actueel[df_actueel['status'] != "Afgekeurd (Gearchiveerd)"] if not df_actueel.empty else pd.DataFrame()
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Totaal Actief", len(df_ct))
@@ -57,7 +52,7 @@ col2.metric("🔴 Verlopen Keuringen", len(df_ct[df_ct['Keur_Status'] == "🔴 V
 col3.metric("🔴 Verlopen Beproevingen", len(df_ct[df_ct['Beproef_Status'] == "🔴 Verlopen"]) if not df_ct.empty else 0)
 col4.metric("⚠️ Vermist", len(df_actueel[df_actueel['status'] == "Niet gevonden (Vermist)"]) if not df_actueel.empty else 0)
 
-links, rechts = st.columns([1, 2]) # Snelkoppeling verhouding: links smal, rechts breed
+links, rechts = st.columns([1,2.3])
 
 with links:
     st.subheader("🛠️ Acties")
@@ -78,7 +73,7 @@ with links:
         if st.button("Wijzigingen toepassen"):
             if sel_ids:
                 for oid in sel_ids:
-                    idx = df_actueel[df_actueel['id'] == oid].index[0]
+                    idx = df_actueel[df_actueel['id'] == oid].index
                     acties = []
                     if n_loc != "Geen wijziging" and n_loc != df_actueel.at[idx, 'locatie']:
                         df_actueel.at[idx, 'locatie'] = n_loc; acties.append(f"Naar {n_loc}")
@@ -126,11 +121,15 @@ with rechts:
     
     with t1:
         df_r = df_g[df_g['status'] != "Afgekeurd (Gearchiveerd)"] if not df_g.empty else pd.DataFrame()
-        st.dataframe(df_r[['id', 'type', 'locatie', 'keuringsdatum', 'Keur_Status', 'beproevingsdatum', 'Beproef_Status', 'status']], hide_index=True, use_container_width=True)
+        if not df_r.empty:
+            st.dataframe(df_r[['id', 'type', 'locatie', 'keuringsdatum', 'Keur_Status', 'beproevingsdatum', 'Beproef_Status', 'status']], hide_index=True, use_container_width=True)
+        else: st.info("Geen actieve objecten.")
         
     with t2:
         df_a = df_g[df_g['status'] == "Afgekeurd (Gearchiveerd)"] if not df_g.empty else pd.DataFrame()
-        st.dataframe(df_a[['id', 'type', 'locatie', 'keuringsdatum', 'beproevingsdatum', 'status']], hide_index=True, use_container_width=True)
+        if not df_a.empty:
+            st.dataframe(df_a[['id', 'type', 'locatie', 'keuringsdatum', 'beproevingsdatum', 'status']], hide_index=True, use_container_width=True)
+        else: st.info("Archief is leeg.")
         
     with t3:
         if not df_actueel.empty:
@@ -138,7 +137,7 @@ with rechts:
             df_actief = df_actueel[df_actueel['status'] != "Afgekeurd (Gearchiveerd)"]
             if not df_actief.empty:
                 loc_counts = df_actief['locatie'].value_counts()
-                st.bar_chart(loc_counts) # <--- DE MOOIE GRAFIEK IS WEER TERUG!
+                st.bar_chart(loc_counts)
                 st.write(loc_counts)
         else: st.info("Geen data voor grafiek.")
             
