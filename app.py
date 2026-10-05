@@ -64,7 +64,7 @@ with links:
     if modus == "Objecten Bewerken" and not df_actueel.empty:
         sel_ids = st.multiselect("Stap 1: Kies ID-nummers:", df_actueel['id'].tolist(), key="m_sel")
         n_loc = st.selectbox("Verplaats naar locatie:", ["Geen wijziging"] + basis_locs)
-        n_stat = st.selectbox("Wijzig STATUS naar:", ["Geen wijziging"] + STATUS_OPTIES)
+        n_stat = st.selectbox("Wijzig status naar:", ["Geen wijziging"] + STATUS_OPTIES)
         u_dt = st.date_input("Uitvoerdatum van keuring:", vandaag)
         k_opt = st.checkbox("🔄 Jaarlijkse Keuring uitgevoerd (+1 jaar)")
         b_opt = st.checkbox("⚖️ Beproeving uitgevoerd")
@@ -73,35 +73,41 @@ with links:
         if st.button("Wijzigingen toepassen"):
             if sel_ids:
                 for oid in sel_ids:
-                    masker = df_actueel['id'] == oid
-                    if masker.any():
-                        h_loc = df_actueel.loc[masker, 'locatie'].values[0]
-                        h_stat = df_actueel.loc[masker, 'status'].values[0]
-                        h_type = df_actueel.loc[masker, 'type'].values[0]
-                        acties = []
+                    # Zoek de huidige gegevens op een 100% veilige manier op
+                    rij_data = df_actueel[df_actueel['id'] == oid]
+                    if not rij_data.empty:
+                        h_loc = str(rij_data['locatie'].values[0])
+                        h_stat = str(rij_data['status'].values[0])
+                        h_type = str(rij_data['type'].values[0])
+                        h_keur = str(rij_data['keuringsdatum'].values[0])
+                        h_bep = str(rij_data['beproevingsdatum'].values[0])
                         
-                        if n_loc != "Geen wijziging" and n_loc != h_loc:
-                            df_actueel.loc[masker, 'locatie'] = n_loc
-                            acties.append(f"Naar {n_loc}")
-                        if n_stat != "Geen wijziging" and n_stat != h_stat:
-                            df_actueel.loc[masker, 'status'] = n_stat
-                            acties.append(f"Status: {n_stat}")
-                            # Als hij gearchiveerd wordt, halen we hem uit de actieve locatie
-                            if n_stat == "Afgekeurd (Gearchiveerd)":
-                                df_actueel.loc[masker, 'locatie'] = "Gearchiveerd"
-                        if k_opt and n_stat != "Afgekeurd (Gearchiveerd)":
-                            n_k = (u_dt + timedelta(days=365)).strftime("%d-%m-%Y")
-                            df_actueel.loc[masker, 'keuringsdatum'] = n_k
-                            acties.append(f"Gekeurd tot {n_k}")
-                        if b_opt and n_stat != "Afgekeurd (Gearchiveerd)":
-                            n_b = (u_dt + timedelta(days=365 if "1 jaar" in g_int else 4*365)).strftime("%d-%m-%Y") if "Geen" not in g_int else ""
-                            df_actueel.loc[masker, 'beproevingsdatum'] = n_b
-                            acties.append(f"Beproefd tot {n_b}")
+                        # Bepaal de nieuwe waarden
+                        v_loc = n_loc if n_loc != "Geen wijziging" else h_loc
+                        v_stat = n_stat if n_stat != "Geen wijziging" else h_stat
                         
-                        if acties:
-                            nu_log = pd.DataFrame([{'datum': datetime.now().strftime("%d-%m-%Y %H:%M"), 'object_id': oid, 'type': str(h_type), 'actie': " / ".join(acties), 'details': 'Online'}])
-                            df_historie = pd.concat([df_historie, nu_log], ignore_index=True)
+                        # Als de status naar Archief gaat, overschrijven we de locatie automatisch naar 'Gearchiveerd'
+                        if v_stat == "Afgekeurd (Gearchiveerd)":
+                            v_loc = "Gearchiveerd"
                             
+                        v_keur = (u_dt + timedelta(days=365)).strftime("%d-%m-%Y") if (k_opt and v_stat != "Afgekeurd (Gearchiveerd)") else h_keur
+                        
+                        if b_opt and v_stat != "Afgekeurd (Gearchiveerd)":
+                            v_bep = (u_dt + timedelta(days=365 if "1 jaar" in g_int else 4*365)).strftime("%d-%m-%Y") if "Geen" not in g_int else ""
+                        else:
+                            v_bep = h_bep
+                        
+                        # Verwijder de oude rij volledig om duplicaten te voorkomen
+                        df_actueel = df_actueel[df_actueel['id'] != oid]
+                        
+                        # Voeg de geüpdate rij als een schone nieuwe regel toe
+                        nieuwe_rij = pd.DataFrame([{'id': oid, 'type': h_type, 'locatie': v_loc, 'keuringsdatum': v_keur, 'beproevingsdatum': v_bep, 'status': v_stat}])
+                        df_actueel = pd.concat([df_actueel, nieuwe_rij], ignore_index=True)
+                        
+                        # Logboek bijwerken
+                        nu_log = pd.DataFrame([{'datum': datetime.now().strftime("%d-%m-%Y %H:%M"), 'object_id': oid, 'type': h_type, 'actie': f"Update (Status: {v_stat} | Locatie: {v_loc})", 'details': 'Online'}])
+                        df_historie = pd.concat([df_historie, nu_log], ignore_index=True)
+                        
                 sla_data_op(df_actueel, df_historie)
                 st.success("✅ Succesvol bijgewerkt!")
                 st.rerun()
@@ -148,7 +154,6 @@ with rechts:
             st.write("📊 **Aantal afgekeurde hijsmiddelen per type product in het archief:**")
             type_counts_archief = df_a['type'].value_counts()
             st.bar_chart(type_counts_archief)
-            st.write(type_counts_archief)
         else: st.info("Archief is leeg.")
         
     with t3:
