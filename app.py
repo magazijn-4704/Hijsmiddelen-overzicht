@@ -49,7 +49,7 @@ df_ct = df_actueel[df_actueel['status'] != "Afgekeurd (Gearchiveerd)"] if not df
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Totaal Actief", len(df_ct))
 col2.metric("🔴 Verlopen Keuringen", len(df_ct[df_ct['Keur_Status'] == "🔴 Verlopen"]) if not df_ct.empty else 0)
-col2.metric("🔴 Verlopen Beproevingen", len(df_ct[df_ct['Beproef_Status'] == "🔴 Verlopen"]) if not df_ct.empty else 0)
+col3.metric("🔴 Verlopen Beproevingen", len(df_ct[df_ct['Beproef_Status'] == "🔴 Verlopen"]) if not df_ct.empty else 0)
 col4.metric("⚠️ Vermist", len(df_actueel[df_actueel['status'] == "Niet gevonden (Vermist)"]) if not df_actueel.empty else 0)
 
 links, rechts = st.columns([1, 2.3])
@@ -118,7 +118,7 @@ with rechts:
     if zoek and not df_actueel.empty:
         df_g = df_g[df_g['id'].astype(str).str.contains(zoek,case=False) | df_g['type'].astype(str).str.contains(zoek,case=False) | df_g['locatie'].astype(str).str.contains(zoek,case=False)]
     
-    t1, t2, t3, t4 = st.tabs(["Actuele Status", "Archief", "Status Grafiek", "Volledige Historie"])
+    t1, t2, t3, t4 = st.tabs(["Actuele Status", "Archief", "Status Overzicht", "Volledige Historie"])
     
     with t1:
         df_r = df_g[df_g['status'] != "Afgekeurd (Gearchiveerd)"] if not df_g.empty else pd.DataFrame()
@@ -134,24 +134,26 @@ with rechts:
         
     with t3:
         if not df_actueel.empty:
-            st.write("**Totaal overzicht van alle materiaalstatussen:**")
+            st.write("**Visueel overzicht van alle materiaalstatussen:**")
+            c_ac = len(df_actueel[df_actueel['status'] == 'Actief'])
+            c_ar = len(df_actueel[df_actueel['status'] == 'Afgekeurd (Gearchiveerd)'])
+            c_ve = len(df_actueel[df_actueel['status'] == 'Niet gevonden (Vermist)'])
+            tot = len(df_actueel)
+            p_ac = (c_ac / tot) * 100 if tot > 0 else 0
+            p_ar = (c_ar / tot) * 100 if tot > 0 else 0
+            p_ve = (c_ve / tot) * 100 if tot > 0 else 0
             
-            # Tellen per status
-            telling = df_actueel['status'].value_counts()
-            
-            # Omzetten naar een nette tabel die Streamlit begrijpt voor kleuren sturing
-            df_chart = pd.DataFrame({'Aantal': telling})
-            
-            # Wijs de juiste kleur toe per status
-            kleuren_config = {}
-            if "Actief" in df_chart.index: kleuren_config["Actief"] = "#28a745" # Groen
-            if "Afgekeurd (Gearchiveerd)" in df_chart.index: kleuren_config["Afgekeurd (Gearchiveerd)"] = "#000000" # Zwart
-            if "Niet gevonden (Vermist)" in df_chart.index: kleuren_config["Niet gevonden (Vermist)"] = "#ff9800" # Oranje
-            
-            # Teken de grafiek op de officieel ondersteunde manier
-            st.bar_chart(df_chart, y="Aantal", color=kleuren_config)
-            st.write(telling)
-        else: st.info("Geen data voor grafiek.")
+            # GEBOUWD IN 100% VEILIGE EN GEKLEURDE HTML BALKEN (GROEN, ZWART, ORANJE)
+            h_s = f"""<div style="font-family:sans-serif;margin-top:10px;">
+                <p>🟢 <b>Actieve middelen:</b> {c_ac} stuks</p>
+                <div style="background:#ddd;border-radius:5px;width:100%;margin-bottom:15px;"><div style="background:#28a745;width:{p_ac}%;height:20px;border-radius:5px;text-align:center;color:white;font-size:12px;line-height:20px;">{int(p_ac)}%</div></div>
+                <p>⚫ <b>Afgekeurd (In archief):</b> {c_ar} stuks</p>
+                <div style="background:#ddd;border-radius:5px;width:100%;margin-bottom:15px;"><div style="background:#000000;width:{p_ar}%;height:20px;border-radius:5px;text-align:center;color:white;font-size:12px;line-height:20px;">{int(p_ar)}%</div></div>
+                <p>🟠 <b>Niet gevonden (Vermist):</b> {c_ve} stuks</p>
+                <div style="background:#ddd;border-radius:5px;width:100%;margin-bottom:15px;"><div style="background:#ff9800;width:{p_ve}%;height:20px;border-radius:5px;text-align:center;color:white;font-size:12px;line-height:20px;">{int(p_ve)}%</div></div>
+            </div>"""
+            st.markdown(h_s, unsafe_allow_html=True)
+        else: st.info("Geen data beschikbaar.")
             
     with t4:
         st.dataframe(df_historie.sort_index(ascending=False), use_container_width=True, hide_index=True)
