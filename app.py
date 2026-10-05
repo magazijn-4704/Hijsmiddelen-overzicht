@@ -49,7 +49,7 @@ df_ct = df_actueel[df_actueel['status'] != "Afgekeurd (Gearchiveerd)"] if not df
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Totaal Actief", len(df_ct))
 col2.metric("🔴 Verlopen Keuringen", len(df_ct[df_ct['Keur_Status'] == "🔴 Verlopen"]) if not df_ct.empty else 0)
-col3.metric("🔴 Verlopen Beproevingen", len(df_ct[df_ct['Beproef_Status'] == "🔴 Verlopen"]) if not df_ct.empty else 0)
+col2.metric("🔴 Verlopen Beproevingen", len(df_ct[df_ct['Beproef_Status'] == "🔴 Verlopen"]) if not df_ct.empty else 0)
 col4.metric("⚠️ Vermist", len(df_actueel[df_actueel['status'] == "Niet gevonden (Vermist)"]) if not df_actueel.empty else 0)
 
 links, rechts = st.columns([1, 2.3])
@@ -136,18 +136,20 @@ with rechts:
         if not df_actueel.empty:
             st.write("**Totaal overzicht van alle materiaalstatussen:**")
             
-            # Maak een simpele, robuuste telling van de statussen
+            # Tellen per status
             telling = df_actueel['status'].value_counts()
             
-            # Maak een tabelletje met vaste kleuren: Actief=Groen, Gearchiveerd=Zwart, Vermist=Oranje
-            kleuren = []
-            for status in telling.index:
-                if status == "Actief": kleuren.append("#28a745")
-                elif status == "Afgekeurd (Gearchiveerd)": kleuren.append("#000000")
-                else: kleuren.append("#ff9800")
+            # Omzetten naar een nette tabel die Streamlit begrijpt voor kleuren sturing
+            df_chart = pd.DataFrame({'Aantal': telling})
             
-            # Teken de grafiek met de juiste kleuren per balk!
-            st.bar_chart(telling, color=kleuren)
+            # Wijs de juiste kleur toe per status
+            kleuren_config = {}
+            if "Actief" in df_chart.index: kleuren_config["Actief"] = "#28a745" # Groen
+            if "Afgekeurd (Gearchiveerd)" in df_chart.index: kleuren_config["Afgekeurd (Gearchiveerd)"] = "#000000" # Zwart
+            if "Niet gevonden (Vermist)" in df_chart.index: kleuren_config["Niet gevonden (Vermist)"] = "#ff9800" # Oranje
+            
+            # Teken de grafiek op de officieel ondersteunde manier
+            st.bar_chart(df_chart, y="Aantal", color=kleuren_config)
             st.write(telling)
         else: st.info("Geen data voor grafiek.")
             
