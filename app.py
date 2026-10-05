@@ -63,8 +63,8 @@ with links:
     
     if modus == "Objecten Bewerken" and not df_actueel.empty:
         sel_ids = st.multiselect("Stap 1: Kies ID-nummers:", df_actueel['id'].tolist(), key="m_sel")
-        n_loc = st.selectbox("Verplaats naar:", ["Geen wijziging"] + basis_locs)
-        n_stat = st.selectbox("Wijzig status naar:", ["Geen wijziging"] + STATUS_OPTIES)
+        n_loc = st.selectbox("Verplaats naar locatie:", ["Geen wijziging"] + basis_locs)
+        n_stat = st.selectbox("Wijzig STATUS naar:", ["Geen wijziging"] + STATUS_OPTIES)
         u_dt = st.date_input("Uitvoerdatum van keuring:", vandaag)
         k_opt = st.checkbox("🔄 Jaarlijkse Keuring uitgevoerd (+1 jaar)")
         b_opt = st.checkbox("⚖️ Beproeving uitgevoerd")
@@ -73,7 +73,6 @@ with links:
         if st.button("Wijzigingen toepassen"):
             if sel_ids:
                 for oid in sel_ids:
-                    # GEBRUIKT NU .LOC VOOR EEN 100% STABIELE UPDATE ZONDER INDEXFOUTEN
                     masker = df_actueel['id'] == oid
                     if masker.any():
                         h_loc = df_actueel.loc[masker, 'locatie'].values[0]
@@ -87,6 +86,9 @@ with links:
                         if n_stat != "Geen wijziging" and n_stat != h_stat:
                             df_actueel.loc[masker, 'status'] = n_stat
                             acties.append(f"Status: {n_stat}")
+                            # Als hij gearchiveerd wordt, halen we hem uit de actieve locatie
+                            if n_stat == "Afgekeurd (Gearchiveerd)":
+                                df_actueel.loc[masker, 'locatie'] = "Gearchiveerd"
                         if k_opt and n_stat != "Afgekeurd (Gearchiveerd)":
                             n_k = (u_dt + timedelta(days=365)).strftime("%d-%m-%Y")
                             df_actueel.loc[masker, 'keuringsdatum'] = n_k
@@ -97,7 +99,7 @@ with links:
                             acties.append(f"Beproefd tot {n_b}")
                         
                         if acties:
-                            nu_log = pd.DataFrame([{'datum': datetime.now().strftime("%d-%m-%Y %H:%M"), 'object_id': oid, 'type': h_type, 'actie': " / ".join(acties), 'details': 'Online'}])
+                            nu_log = pd.DataFrame([{'datum': datetime.now().strftime("%d-%m-%Y %H:%M"), 'object_id': oid, 'type': str(h_type), 'actie': " / ".join(acties), 'details': 'Online'}])
                             df_historie = pd.concat([df_historie, nu_log], ignore_index=True)
                             
                 sla_data_op(df_actueel, df_historie)
