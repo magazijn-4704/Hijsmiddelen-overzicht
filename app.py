@@ -1,4 +1,4 @@
-#Deel 1 Database-initialisatie & Datumberekeningen (Bovenkant)
+# Deel 1: Database-initialisatie & Datumberekeningen
 
 import streamlit as st
 import pandas as pd
@@ -72,12 +72,12 @@ bekende_locaties = [l for l in bekende_locaties if str(l).strip() != ""]
 
 for standaard_loc in ['Magazijn A', 'Auto 314', 'Auto 316', 'Auto 317', 'Werkplaats']:
     if standaard_loc not in bekende_locaties:
-        bekende_locaties.append(standaard_loc)
+        bekende_locaties.append(standard_loc)
 bekende_locaties = sorted(bekende_locaties)
 
 links, rechts = st.columns([1, 2.3])
 
-#Deel 2 Toegangsbeheer, Bewerken & Toevoegen (Middenstuk)
+#Deel 2:Toegangsbeheer, Bewerken & Nieuw Object Toevoegen
 
 with links:
     st.subheader("🔒 Toegangsbeheer")
@@ -153,15 +153,23 @@ with links:
             with st.form("i_form", clear_on_submit=True):
                 n_id = st.text_input("Uniek ID Nummer (bijv. PL-001):").strip()
                 
-                type_opties = ["--- Handmatig nieuw type invoeren ---"] + bekende_types
-                gekozen_type = st.selectbox("Kies type hijsmiddel:", type_opties, index=0 if not bekende_types else 1)
+                # VERBETERD: Dropdown start nu blanco verplicht!
+                type_opties = ["Kies een type hijsmiddel... ", "--- Handmatig nieuw type invoeren ---"] + bekende_types
+                gekozen_type = st.selectbox("Type selecteren:", type_opties, index=0)
                 handmatig_type = st.text_input("Indien nieuw type, typ hier de benaming:")
-                def_type = handmatig_type.strip() if gekozen_type == "--- Handmatig nieuw type invoeren ---" else gekozen_type
                 
-                loc_opties = ["--- Handmatig nieuwe locatie invoeren ---"] + bekende_locaties
-                gekozen_loc = st.selectbox("Kies locatie / vlootnummer:", loc_opties, index=1)
+                if gekozen_type == "Kies een type hijsmiddel... ": def_type = ""
+                elif gekozen_type == "--- Handmatig nieuw type invoeren ---": def_type = handmatig_type.strip()
+                else: def_type = gekozen_type
+                
+                # VERBETERD: Dropdown start nu blanco verplicht!
+                loc_opties = ["Kies een locatie... ", "--- Handmatig nieuwe locatie invoeren ---"] + bekende_locaties
+                gekozen_loc = st.selectbox("Locatie / Vlootnummer selecteren:", loc_opties, index=0)
                 handmatig_loc = st.text_input("Indien nieuwe locatie, typ hier het vlootnummer:")
-                def_loc = handmatig_loc.strip() if gekozen_loc == "--- Handmatig nieuwe locatie invoeren ---" else gekozen_loc
+                
+                if gekozen_loc == "Kies een locatie... ": def_loc = ""
+                elif gekozen_loc == "--- Handmatig nieuwe locatie invoeren ---": def_loc = handmatig_loc.strip()
+                else: def_loc = gekozen_loc
                 
                 st.write("---")
                 k_init = st.date_input("Volgende Keuringsdatum:", vandaag + timedelta(days=365), format="DD-MM-YYYY")
@@ -176,37 +184,40 @@ with links:
                         df_historie = pd.concat([df_historie, nu_log], ignore_index=True)
                         sla_data_op(df_actueel, df_historie)
                         st.success("🎉 Succesvol toegevoegd!"); st.rerun()
-                    else: st.error("❌ ID, Type en Locatie zijn verplicht!")
+                    else: st.error("❌ ID, Type en Locatie zijn verplicht! Kies aub geldige waardes.")
 
-#Deel 3 Correcties, Excel Export & Plotly Overzichten (Onderkant)
+#Deel 3: Correcties & Overzichten
 
         elif modus == "Object Gegevens Wijzigen of Verwijderen" and not df_actueel.empty:
             st.write("✏️ **Corrigeer typefouten of verwijder een object permanent**")
             id_keuze = st.selectbox("Selecteer het te corrigeren ID nummer:", df_actueel['id'].tolist())
-            masker = df_actueel['id'] == id_keuze
-            idx = df_actueel[masker].index
             
-            c_id = st.text_input("Aanpassen ID Nummer:", df_actueel.at[idx, 'id'])
-            c_type = st.text_input("Aanpassen Type omschrijving:", df_actueel.at[idx, 'type'])
-            c_loc = st.text_input("Aanpassen Locatie / Vlootnummer:", df_actueel.at[idx, 'locatie'])
+            # GEBRUIKT NU ILOC[0] VOOR EEN 100% WATERDICHTE INDEX-BEWERKING ZONDER CRASHES
+            rij_data = df_actueel[df_actueel['id'] == id_keuze]
             
-            kol1, kol2 = st.columns(2)
-            with kol1:
-                if st.button("💾 Wijzigingen Opslaan"):
-                    df_actueel.at[idx, 'id'] = c_id
-                    df_actueel.at[idx, 'type'] = c_type
-                    df_actueel.at[idx, 'locatie'] = c_loc
-                    nu_log = pd.DataFrame([{'datum': datetime.now().strftime("%d-%m-%Y %H:%M"), 'object_id': c_id, 'type': c_type, 'actie': 'Gegevens handmatig gecorrigeerd', 'details': 'Admin'}])
-                    df_historie = pd.concat([df_historie, nu_log], ignore_index=True)
-                    sla_data_op(df_actueel, df_historie)
-                    st.success("✅ Gegevens succesvol aangepast!"); st.rerun()
-            with kol2:
-                if st.button("🗑️ Permanent VERWIJDEREN"):
-                    df_actueel = df_actueel[df_actueel['id'] != id_keuze]
-                    nu_log = pd.DataFrame([{'datum': datetime.now().strftime("%d-%m-%Y %H:%M"), 'object_id': id_keuze, 'type': c_type, 'actie': 'Object permanent gewist', 'details': 'Admin'}])
-                    df_historie = pd.concat([df_historie, nu_log], ignore_index=True)
-                    sla_data_op(df_actueel, df_historie)
-                    st.warning("🗑️ Object permanent verwijderd!"); st.rerun()
+            if not rij_data.empty:
+                c_id = st.text_input("Aanpassen ID Nummer:", str(rij_data['id'].iloc[0]))
+                c_type = st.text_input("Aanpassen Type omschrijving:", str(rij_data['type'].iloc[0]))
+                c_loc = st.text_input("Aanpassen Locatie / Vlootnummer:", str(rij_data['locatie'].iloc[0]))
+                
+                kol1, kol2 = st.columns(2)
+                with kol1:
+                    if st.button("💾 Wijzigingen Opslaan"):
+                        masker = df_actueel['id'] == id_keuze
+                        df_actueel.loc[masker, 'id'] = c_id
+                        df_actueel.loc[masker, 'type'] = c_type
+                        df_actueel.loc[masker, 'locatie'] = c_loc
+                        nu_log = pd.DataFrame([{'datum': datetime.now().strftime("%d-%m-%Y %H:%M"), 'object_id': c_id, 'type': c_type, 'actie': 'Gegevens handmatig gecorrigeerd', 'details': 'Admin'}])
+                        df_historie = pd.concat([df_historie, nu_log], ignore_index=True)
+                        sla_data_op(df_actueel, df_historie)
+                        st.success("✅ Gegevens succesvol aangepast!"); st.rerun()
+                with kol2:
+                    if st.button("🗑️ Permanent VERWIJDEREN"):
+                        df_actueel = df_actueel[df_actueel['id'] != id_keuze]
+                        nu_log = pd.DataFrame([{'datum': datetime.now().strftime("%d-%m-%Y %H:%M"), 'object_id': id_keuze, 'type': c_type, 'actie': 'Object permanent gewist', 'details': 'Admin'}])
+                        df_historie = pd.concat([df_historie, nu_log], ignore_index=True)
+                        sla_data_op(df_actueel, df_historie)
+                        st.warning("🗑️ Object permanent verwijderd!"); st.rerun()
     else:
         st.info("ℹ️ **Alleen-lezen modus actief.** Voer bovenaan het admin-wachtwoord in om mutaties, correcties of nieuwe objecten toe te voegen.")
 
@@ -225,7 +236,7 @@ with rechts:
         if not df_r.empty:
             st.dataframe(df_r[['id', 'type', 'locatie', 'laatste_keuring', 'volgende_keuring', 'Keur_Status', 'laatste_beproeving', 'volgende_beproeving', 'Beproef_Status', 'status']], hide_index=True, use_container_width=True)
             
-            # ECHTE EXCEL BACK-UP DOWNLOAD KNOP
+            # EXCEL BACK-UP DOWNLOAD KNOP
             out_stream = io.BytesIO()
             with pd.ExcelWriter(out_stream, engine='openpyxl') as w: df_actueel.to_excel(w, sheet_name='actueel', index=False); df_historie.to_excel(w, sheet_name='historie', index=False)
             st.download_button(label="📥 Download Volledige Database Back-up (Excel .xlsx)", data=out_stream.getvalue(), file_name=f"hijsmiddelen_backup_{datetime.now().strftime('%d-%m-%Y')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="btn_xlsx_backup")
