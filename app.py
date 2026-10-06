@@ -1,3 +1,5 @@
+#Deel 1 Database-initialisatie & Datumberekeningen (Bovenkant)
+
 import streamlit as st
 import pandas as pd
 import os
@@ -7,7 +9,7 @@ from datetime import datetime, timedelta
 
 EXCEL_FILE = "hijsmiddelen_database.xlsx"
 
-# 1. INITIALISATIE: Maak Excel aan met de nieuwe, uitgebreide kolommen als deze nog niet bestaat
+# 1. INITIALISATIE: Maak Excel aan met alle kolommen als deze nog niet bestaat
 if not os.path.exists(EXCEL_FILE):
     df_actueel = pd.DataFrame(columns=['id', 'type', 'locatie', 'laatste_keuring', 'volgende_keuring', 'laatste_beproeving', 'volgende_beproeving', 'status'])
     df_historie = pd.DataFrame(columns=['datum', 'object_id', 'type', 'actie', 'details'])
@@ -23,12 +25,17 @@ def sla_data_op(df_actuel, df_hist):
         df_actuel.to_excel(writer, sheet_name='actueel', index=False)
         df_hist.to_excel(writer, sheet_name='historie', index=False)
 
-# Laad de actuele gegevens in
 df_actueel = laad_data('actueel')
 df_historie = laad_data('historie')
+
+# EXTRA VEILIGHEID: Zorg dat de nieuwe kolommen ALTIJD aanwezig zijn in het geheugen
+for col in ['id', 'type', 'locatie', 'laatste_keuring', 'volgende_keuring', 'laatste_beproeving', 'volgende_beproeving', 'status']:
+    if col not in df_actueel.columns:
+        df_actueel[col] = ""
+
 vandaag = datetime.now().date()
 
-# Statuscontrole voor de kleuren (Kijkt nu heel nauwkeurig naar de nieuwe kolommen)
+# Statuscontrole voor de kleuren
 def check_status(row, is_bep=False):
     if row['status'] == "Afgekeurd (Gearchiveerd)": return "⚫ Gearchiveerd"
     dt_str = row['volgende_beproeving'] if is_bep else row['volgende_keuring']
@@ -40,11 +47,11 @@ def check_status(row, is_bep=False):
         return "🟢 OK"
     except: return "⚪ Fout"
 
-if not df_actueel.empty:
+if not df_actueel.empty and len(df_actueel.dropna()) > 0:
     df_actueel['Keur_Status'] = df_actueel.apply(lambda r: check_status(r, False), axis=1)
     df_actueel['Beproef_Status'] = df_actueel.apply(lambda r: check_status(r, True), axis=1)
 else:
-    df_actueel['Keur_Status'], df_actueel['Beproef_Status'] = pd.Series(dtype='str'), pd.Series(dtype='str')
+    df_actueel['Keur_Status'], df_actueel['Beproef_Status'] = pd.Series(dtype='str', index=df_actueel.index), pd.Series(dtype='str', index=df_actueel.index)
 
 st.set_page_config(layout="wide", page_title="Hijsmiddelen Beheer")
 st.title("🏗️ Centraal Hijsmiddelen Dashboard")
@@ -57,23 +64,23 @@ col2.metric("🔴 Verlopen Keuringen", len(df_ct[df_ct['Keur_Status'] == "🔴 V
 col3.metric("🔴 Verlopen Beproevingen", len(df_ct[df_ct['Beproef_Status'] == "🔴 Verlopen"]) if not df_ct.empty else 0)
 col4.metric("⚠️ Vermist Materieel", len(df_actueel[df_actueel['status'] == "Niet gevonden (Vermist)"]) if not df_actueel.empty else 0)
 
-# Dynamische lijsten genereren voor de handige dropdownmenu's dadelijk
-bekende_types = sorted(list(set(df_actueel['type'].tolist()))) if not df_actueel.empty else []
-bekende_locaties = sorted(list(set(df_actueel['locatie'].tolist()))) if not df_actueel.empty else []
+bekende_types = sorted(list(set(df_actueel['type'].dropna().tolist()))) if not df_actueel.empty else []
+bekende_types = [t for t in bekende_types if str(t).strip() != ""]
 
-# Zorg dat de standaard locaties er altijd in staan, ook bij een lege database
+bekende_locaties = sorted(list(set(df_actueel['locatie'].dropna().tolist()))) if not df_actueel.empty else []
+bekende_locaties = [l for l in bekende_locaties if str(l).strip() != ""]
+
 for standaard_loc in ['Magazijn A', 'Auto 314', 'Auto 316', 'Auto 317', 'Werkplaats']:
     if standaard_loc not in bekende_locaties:
         bekende_locaties.append(standaard_loc)
 bekende_locaties = sorted(bekende_locaties)
 
-# deel 2
-# Snelkoppeling verhouding: links smal (30%), rechts breed (70%)
 links, rechts = st.columns([1, 2.3])
+
+#Deel 2 Toegangsbeheer, Bewerken & Toevoegen (Middenstuk)
 
 with links:
     st.subheader("🔒 Toegangsbeheer")
-    # Het geheime wachtwoord waarmee jij het actiemenu kunt ontgrendelen
     wachtwoord_invoer = st.text_input("Voer admin-wachtwoord in voor wijzigingen:", type="password")
     is_admin = (wachtwoord_invoer == "HijsBeheer2026!")
 
@@ -171,7 +178,7 @@ with links:
                         st.success("🎉 Succesvol toegevoegd!"); st.rerun()
                     else: st.error("❌ ID, Type en Locatie zijn verplicht!")
 
-# deel 3
+#Deel 3 Correcties, Excel Export & Plotly Overzichten (Onderkant)
 
         elif modus == "Object Gegevens Wijzigen of Verwijderen" and not df_actueel.empty:
             st.write("✏️ **Corrigeer typefouten of verwijder een object permanent**")
@@ -214,6 +221,7 @@ with rechts:
     
     with t1:
         df_r = df_g[df_g['status'] != "Afgekeurd (Gearchiveerd)"] if not df_g.empty else pd.DataFrame()
+        df_r = df_r[df_r['id'] != ""]
         if not df_r.empty:
             st.dataframe(df_r[['id', 'type', 'locatie', 'laatste_keuring', 'volgende_keuring', 'Keur_Status', 'laatste_beproeving', 'volgende_beproeving', 'Beproef_Status', 'status']], hide_index=True, use_container_width=True)
             
@@ -238,7 +246,7 @@ with rechts:
     with t3:
         if not df_actueel.empty:
             st.write("**Aantal actieve hijsmiddelen per locatie (Vlootnummer):**")
-            df_actief = df_actueel[df_actueel['status'] != "Afgekeurd (Gearchiveerd)"]
+            df_actief = df_actueel[(df_actueel['status'] != "Afgekeurd (Gearchiveerd)") & (df_actueel['id'] != "")]
             if not df_actief.empty:
                 fig = px.bar(df_actief, x='locatie', color='type', hover_data=['id', 'type'], labels={'locatie': 'Locatie / Vlootnummer', 'count': 'Aantal middelen', 'type': 'Producttype'}, title="Materiële bezetting per auto (Beweeg muis over de staven voor details)")
                 st.plotly_chart(fig, use_container_width=True)
@@ -247,8 +255,9 @@ with rechts:
         
     with t4:
         st.write("📋 **Totaaloverzicht van alle unieke types hijsmiddelen in het bedrijf:**")
-        if not df_actueel.empty:
-            df_type_counts = df_actueel['type'].value_counts().reset_index()
+        df_types_filtered = df_actueel[df_actueel['id'] != ""]
+        if not df_types_filtered.empty:
+            df_type_counts = df_types_filtered['type'].value_counts().reset_index()
             df_type_counts.columns = ['Type Omschrijving', 'Totaal in bezit (Aantal)']
             st.dataframe(df_type_counts, hide_index=True, use_container_width=True)
         else: st.info("Geen data beschikbaar.")
