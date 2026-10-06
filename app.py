@@ -54,7 +54,15 @@ else:
     df_actueel['Keur_Status'], df_actueel['Beproef_Status'] = pd.Series(dtype='str', index=df_actueel.index), pd.Series(dtype='str', index=df_actueel.index)
 
 st.set_page_config(layout="wide", page_title="Hijsmiddelen Beheer")
-st.title("🏗️ Centraal Hijsmiddelen Dashboard")
+
+# LOGO EN TITEL NAAST ELKAAR (De titel krijgt 85% van de ruimte, het logo 15%)
+kol_titel, kol_logo = st.columns([5.5, 1])
+
+with kol_titel:
+    st.title("🏗️ Centraal Hijsmiddelen Dashboard")
+
+with kol_logo:
+    # st.image("logo.png", width=130)
 
 # KPI KAARTEN BOVENIN HET SCHERM
 df_ct = df_actueel[df_actueel['status'] != "Afgekeurd (Gearchiveerd)"] if not df_actueel.empty else pd.DataFrame()
@@ -78,6 +86,7 @@ bekende_locaties = sorted(bekende_locaties)
 links, rechts = st.columns([1, 2.3])
 
 #Deel 2:Toegangsbeheer, Bewerken & Nieuw Object Toevoegen
+# wachtwoord veranderen kan tussen de 2 aanhalingtekens
 
 with links:
     st.subheader("🔒 Toegangsbeheer")
