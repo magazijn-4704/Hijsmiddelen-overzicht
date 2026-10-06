@@ -72,7 +72,7 @@ bekende_locaties = [l for l in bekende_locaties if str(l).strip() != ""]
 
 for standaard_loc in ['Magazijn A', 'Auto 314', 'Auto 316', 'Auto 317', 'Werkplaats']:
     if standaard_loc not in bekende_locaties:
-        bekende_locaties.append(standard_loc)
+        bekende_locaties.append(standaard_loc)
 bekende_locaties = sorted(bekende_locaties)
 
 links, rechts = st.columns([1, 2.3])
