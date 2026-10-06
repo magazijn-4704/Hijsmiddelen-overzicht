@@ -1,5 +1,4 @@
 # Deel 1: Database-initialisatie & Datumberekeningen
-
 import streamlit as st
 import pandas as pd
 import os
@@ -55,7 +54,8 @@ else:
 
 st.set_page_config(layout="wide", page_title="Hijsmiddelen Beheer")
 
-# LOGO EN TITEL NAAST ELKAAR (De titel krijgt 85% van de ruimte, het logo 15%)
+# ############################################################################
+# # DEEL 1 EXTRA: TITEL EN LOGO NAAST ELKAAR (Titel krijgt 85%, logo krijgt 15%)
 kol_titel, kol_logo = st.columns([5.5, 1])
 
 with kol_titel:
@@ -63,6 +63,7 @@ with kol_titel:
 
 with kol_logo:
     # st.image("logo.png", width=130)
+# ############################################################################
 
 # KPI KAARTEN BOVENIN HET SCHERM
 df_ct = df_actueel[df_actueel['status'] != "Afgekeurd (Gearchiveerd)"] if not df_actueel.empty else pd.DataFrame()
@@ -84,6 +85,7 @@ for standaard_loc in ['Magazijn A', 'Auto 314', 'Auto 316', 'Auto 317', 'Werkpla
 bekende_locaties = sorted(bekende_locaties)
 
 links, rechts = st.columns([1, 2.3])
+
 
 #Deel 2:Toegangsbeheer, Bewerken & Nieuw Object Toevoegen
 # wachtwoord veranderen kan tussen de 2 aanhalingtekens
