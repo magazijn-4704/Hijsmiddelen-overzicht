@@ -1,4 +1,5 @@
-# Deel 1: Database-initialisatie & Datumberekeningen
+#Deel 1: Basisinstellingen & Titelverdeling
+
 import streamlit as st
 import pandas as pd
 import os
@@ -8,7 +9,6 @@ from datetime import datetime, timedelta
 
 EXCEL_FILE = "hijsmiddelen_database.xlsx"
 
-# 1. INITIALISATIE: Maak Excel aan met alle kolommen als deze nog niet bestaat
 if not os.path.exists(EXCEL_FILE):
     df_actueel = pd.DataFrame(columns=['id', 'type', 'locatie', 'laatste_keuring', 'volgende_keuring', 'laatste_beproeving', 'volgende_beproeving', 'status'])
     df_historie = pd.DataFrame(columns=['datum', 'object_id', 'type', 'actie', 'details'])
@@ -27,14 +27,12 @@ def sla_data_op(df_actuel, df_hist):
 df_actueel = laad_data('actueel')
 df_historie = laad_data('historie')
 
-# EXTRA VEILIGHEID: Zorg dat de nieuwe kolommen ALTIJD aanwezig zijn in het geheugen
 for col in ['id', 'type', 'locatie', 'laatste_keuring', 'volgende_keuring', 'laatste_beproeving', 'volgende_beproeving', 'status']:
     if col not in df_actueel.columns:
         df_actueel[col] = ""
 
 vandaag = datetime.now().date()
 
-# Statuscontrole voor de kleuren
 def check_status(row, is_bep=False):
     if row['status'] == "Afgekeurd (Gearchiveerd)": return "⚫ Gearchiveerd"
     dt_str = row['volgende_beproeving'] if is_bep else row['volgende_keuring']
@@ -54,16 +52,13 @@ else:
 
 st.set_page_config(layout="wide", page_title="Hijsmiddelen Beheer")
 
-# ############################################################################
-# # DEEL 1 EXTRA: TITEL EN LOGO NAAST ELKAAR (Titel krijgt 85%, logo krijgt 15%)
+# INDELING VOOR DE TITEL EN LOGO
 kol_titel, kol_logo = st.columns([5.5, 1])
-
 with kol_titel:
     st.title("🏗️ Centraal Hijsmiddelen Dashboard")
-
 with kol_logo:
+    pass
     # st.image("logo.png", width=130)
-# ############################################################################
 
 # KPI KAARTEN BOVENIN HET SCHERM
 df_ct = df_actueel[df_actueel['status'] != "Afgekeurd (Gearchiveerd)"] if not df_actueel.empty else pd.DataFrame()
@@ -86,9 +81,7 @@ bekende_locaties = sorted(bekende_locaties)
 
 links, rechts = st.columns([1, 2.3])
 
-
-#Deel 2:Toegangsbeheer, Bewerken & Nieuw Object Toevoegen
-# wachtwoord veranderen kan tussen de 2 aanhalingtekens
+#Deel 2:
 
 with links:
     st.subheader("🔒 Toegangsbeheer")
@@ -164,7 +157,6 @@ with links:
             with st.form("i_form", clear_on_submit=True):
                 n_id = st.text_input("Uniek ID Nummer (bijv. PL-001):").strip()
                 
-                # VERBETERD: Dropdown start nu blanco verplicht!
                 type_opties = ["Kies een type hijsmiddel... ", "--- Handmatig nieuw type invoeren ---"] + bekende_types
                 gekozen_type = st.selectbox("Type selecteren:", type_opties, index=0)
                 handmatig_type = st.text_input("Indien nieuw type, typ hier de benaming:")
@@ -173,7 +165,6 @@ with links:
                 elif gekozen_type == "--- Handmatig nieuw type invoeren ---": def_type = handmatig_type.strip()
                 else: def_type = gekozen_type
                 
-                # VERBETERD: Dropdown start nu blanco verplicht!
                 loc_opties = ["Kies een locatie... ", "--- Handmatig nieuwe locatie invoeren ---"] + bekende_locaties
                 gekozen_loc = st.selectbox("Locatie / Vlootnummer selecteren:", loc_opties, index=0)
                 handmatig_loc = st.text_input("Indien nieuwe locatie, typ hier het vlootnummer:")
@@ -197,13 +188,12 @@ with links:
                         st.success("🎉 Succesvol toegevoegd!"); st.rerun()
                     else: st.error("❌ ID, Type en Locatie zijn verplicht! Kies aub geldige waardes.")
 
-#Deel 3: Correcties & Overzichten
+#Deel 3: Correctiemenu & Tabellenoverzichten
 
         elif modus == "Object Gegevens Wijzigen of Verwijderen" and not df_actueel.empty:
             st.write("✏️ **Corrigeer typefouten of verwijder een object permanent**")
             id_keuze = st.selectbox("Selecteer het te corrigeren ID nummer:", df_actueel['id'].tolist())
             
-            # GEBRUIKT NU ILOC[0] VOOR EEN 100% WATERDICHTE INDEX-BEWERKING ZONDER CRASHES
             rij_data = df_actueel[df_actueel['id'] == id_keuze]
             
             if not rij_data.empty:
@@ -247,7 +237,6 @@ with rechts:
         if not df_r.empty:
             st.dataframe(df_r[['id', 'type', 'locatie', 'laatste_keuring', 'volgende_keuring', 'Keur_Status', 'laatste_beproeving', 'volgende_beproeving', 'Beproef_Status', 'status']], hide_index=True, use_container_width=True)
             
-            # EXCEL BACK-UP DOWNLOAD KNOP
             out_stream = io.BytesIO()
             with pd.ExcelWriter(out_stream, engine='openpyxl') as w: df_actueel.to_excel(w, sheet_name='actueel', index=False); df_historie.to_excel(w, sheet_name='historie', index=False)
             st.download_button(label="📥 Download Volledige Database Back-up (Excel .xlsx)", data=out_stream.getvalue(), file_name=f"hijsmiddelen_backup_{datetime.now().strftime('%d-%m-%Y')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="btn_xlsx_backup")
