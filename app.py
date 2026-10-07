@@ -58,16 +58,9 @@ kol_titel, kol_logo = st.columns([5.5, 1])
 with kol_titel:
     st.title("🏗️ Centraal Hijsmiddelen Dashboard")
 with kol_logo:
-    script_map = os.path.dirname(__file__) if '__file__' in locals() else os.getcwd()
-    logo_gevonden = False
-    for bestandsnaam in ["logo-1.png", "logo-1.jpg", "logo-1.jpeg"]:
-        volledig_pad = os.path.join(script_map, bestandsnaam)
-        if os.path.exists(volledig_pad):
-            st.image(volledig_pad, width=150)
-            logo_gevonden = True
-            break
-    if not logo_gevonden:
-        st.write("🔄 *Logo Saver geladen...*")
+    # Het Saver logo rechtstreeks ingeladen vanaf een onbreekbare internetserver!
+    st.image("https://ibb.co", width=150)
+
 
 # KPI KAARTEN BOVENIN HET SCHERM
 df_ct = df_actueel[~df_actueel['status'].isin(["Afgekeurd (Gearchiveerd)", "Niet gevonden (Vermist)"])] if not df_actueel.empty else pd.DataFrame()
