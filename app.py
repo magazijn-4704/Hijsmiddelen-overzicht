@@ -53,13 +53,8 @@ else:
 
 st.set_page_config(layout="wide", page_title="Hijsmiddelen Beheer")
 
-# 🖼️ COORDINEER LOGO: Zoekt direct in de actieve servermap van de app
-kol_titel, kol_logo = st.columns([5.5, 1])
-with kol_titel:
-    st.title("🏗️ Centraal Hijsmiddelen Dashboard")
-with kol_logo:
-    # Het Saver logo rechtstreeks ingeladen vanaf een onbreekbare internetserver!
-    st.image("https://ibb.co", width=150)
+# Gewoon de titel over de volle breedte, zonder logo-gedoe
+st.title("🏗️ Centraal Hijsmiddelen Dashboard")
 
 
 # KPI KAARTEN BOVENIN HET SCHERM
