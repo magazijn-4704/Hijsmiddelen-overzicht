@@ -57,9 +57,11 @@ kol_titel, kol_logo = st.columns([5.5, 1])
 with kol_titel:
     st.title("🏗️ Centraal Hijsmiddelen Dashboard")
 with kol_logo:
-    # Verander 'magazijn-4704' en 'Hijsmiddelen-overzicht' indien jouw GitHub pad afwijkt
-    logo_url = "https://githubusercontent.com"
-    st.image(logo_url, width=140, error_handling="text")
+    try:
+        logo_url = "https://githubusercontent.com"
+        st.image(logo_url, width=140)
+    except:
+        st.write("🔄 *Logo laden...*")
 
 # KPI KAARTEN BOVENIN HET SCHERM
 df_ct = df_actueel[~df_actueel['status'].isin(["Afgekeurd (Gearchiveerd)", "Niet gevonden (Vermist)"])] if not df_actueel.empty else pd.DataFrame()
