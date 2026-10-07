@@ -1,10 +1,11 @@
-#Deel 1:Database & Directe Internet-Logo Koppeling
+#Deel 1: Excel-Database, Gekleurde HTML-Tabellen & Logo-Inlezer
 
 import streamlit as st
 import pandas as pd
 import os
 import io
 import plotly.express as px
+import base64
 from datetime import datetime, timedelta
 
 EXCEL_FILE = "hijsmiddelen_database.xlsx"
@@ -52,16 +53,24 @@ else:
 
 st.set_page_config(layout="wide", page_title="Hijsmiddelen Beheer")
 
-# DEFINITIEVE LOGO OPLOSSING: We laden het logo via de directe internetlink van jouw GitHub kluis!
+# HOOGSTE KWALITEIT LOGO-INLEZER: Converteert het logo naar veilige tekstdata
+def get_base64_image(img_path):
+    for ext in ['png', 'jpg', 'jpeg', 'PNG', 'JPG', 'JPEG']:
+        volledig_pad = f"{img_path}.{ext}"
+        if os.path.exists(volledig_pad):
+            with open(volledig_pad, "rb") as image_file:
+                return f"data:image/{ext};base64," + base64.b64encode(image_file.read()).decode()
+    return None
+
 kol_titel, kol_logo = st.columns([5.5, 1])
 with kol_titel:
     st.title("🏗️ Centraal Hijsmiddelen Dashboard")
 with kol_logo:
-    try:
-        logo_url = "https://githubusercontent.com"
-        st.image(logo_url, width=140)
-    except:
-        st.write("🔄 *Logo laden...*")
+    logo_base64 = get_base64_image("logo-1")
+    if logo_base64:
+        st.markdown(f'<img src="{logo_base64}" width="140">', unsafe_allow_html=True)
+    else:
+        st.write("🔄 *Geen logo-1 gevonden op GitHub*")
 
 # KPI KAARTEN BOVENIN HET SCHERM
 df_ct = df_actueel[~df_actueel['status'].isin(["Afgekeurd (Gearchiveerd)", "Niet gevonden (Vermist)"])] if not df_actueel.empty else pd.DataFrame()
@@ -84,12 +93,11 @@ bekende_locaties = sorted(bekende_locaties)
 
 links, rechts = st.columns([1, 2.3])
 
-#Deel 2A: Toegangsbeheer & Bestaand Object Bewerken
+#Deel 2A: Sessiebeheer & Bestaand Object Bewerken
 
 with links:
     st.subheader("🔒 Toegangsbeheer")
     
-    # Session states aanmaken om invoervelden geforceerd te kunnen resetten
     if 'admin_wachtwoord' not in st.session_state: st.session_state['admin_wachtwoord'] = ""
     if 'form_id' not in st.session_state: st.session_state['form_id'] = ""
     if 'form_handmat_type' not in st.session_state: st.session_state['form_handmat_type'] = ""
@@ -177,7 +185,7 @@ with links:
                                 nu_log = pd.DataFrame([{'datum': datetime.now().strftime("%d-%m-%Y %H:%M"), 'object_id': oid, 'type': h_type, 'actie': f"Bewerkt (Status: {v_stat} | Locatie: {v_loc})", 'details': 'Admin'}])
                                 df_historie = pd.concat([df_historie, nu_log], ignore_index=True)
                         sla_data_op(df_actueel, df_historie)
-                        st.session_state['bew_ids'] = [] # Reset selectieveld blinkend leeg
+                        st.session_state['bew_ids'] = [] 
                         st.success("✅ Wijzigingen succesvol doorgevoerd!"); st.rerun()
                 else: st.error("❌ Kies minimaal één ID.")
 
@@ -249,12 +257,11 @@ with links:
                     st.session_state['sel_loc_idx'] = 0
                     st.success("🎉 Succesvol toegevoegd!"); st.rerun()
 
-#Deel 3: Blanco Correctiemenu, Identieke Kolommen & Gecombineerde Grafiek
+#Deel 3: Gekleurde HTML-Tabellen, Blanco Correctiemenu & Gecombineerde Grafiek
 
         elif modus == "Object Gegevens Wijzigen of Verwijderen" and not df_actueel.empty:
             st.write("✏️ **Corrigeer typefouten of verwijder een object permanent**")
             
-            # VERBETERD (Punt 5): Start verplicht blanco, zodat velden leeg blijven bij selectie
             id_opties = ["Kies een ID nummer..."] + df_actueel['id'].tolist()
             id_keuze = st.selectbox("Selecteer het te corrigeren ID nummer:", id_opties, index=0)
             
@@ -271,7 +278,7 @@ with links:
                     c_loc = st.text_input("Aanpassen Locatie / Vlootnummer:", h_loc)
                     
                     st.write("---")
-                    bevestig = st.checkbox("⚠️ Ik weet zeker dat ik dit object wil wijzigen of permanent wissen.")
+                    bevestig = st.checkbox("⚠️ Ik weet zeker dat ik dit object wilt wijzigen of permanent wissen.")
                     
                     kol1, kol2 = st.columns(2)
                     with kol1:
@@ -310,15 +317,21 @@ with rechts:
     
     t1, t2, t3, t4, t5 = st.tabs(["Actuele Status", "Archief / Vermist", "Locatie Grafiek (Interactief)", "Aantallen per Type", "Volledige Historie"])
     
-    # De 10 vaste kolommen die we nu overal exact gelijk gaan tonen
     vaste_kolommen = ['id', 'type', 'locatie', 'laatste_keuring', 'volgende_keuring', 'Keur_Status', 'laatste_beproeving', 'volgende_beproeving', 'Beproef_Status', 'status']
+
+    # Handige functie om tabellen om te zetten naar HTML met een prachtige ORANJE kopbalk!
+    def toon_oranje_tabel(df_tabel):
+        html = df_tabel.to_html(index=False, classes='table table-striped')
+        html = html.replace('<thead>', '<thead style="background-color: #ff9800; color: white;">')
+        html = html.replace('<tr>', '<tr style="text-align: left;">', 1)
+        st.markdown(f'<div style="overflow-x:auto;">{html}</div>', unsafe_allow_html=True)
 
     with t1:
         df_r = df_g[~df_g['status'].isin(["Afgekeurd (Gearchiveerd)", "Niet gevonden (Vermist)"])] if not df_g.empty else pd.DataFrame()
         df_r = df_r[df_r['id'] != ""]
         if not df_r.empty:
-            st.dataframe(df_r[vaste_kolommen], hide_index=True, use_container_width=True)
-            
+            toon_oranje_tabel(df_r[vaste_kolommen])
+            st.write("")
             out_stream = io.BytesIO()
             with pd.ExcelWriter(out_stream, engine='openpyxl') as w: df_actueel.to_excel(w, sheet_name='actueel', index=False); df_historie.to_excel(w, sheet_name='historie', index=False)
             st.download_button(label="📥 Download Volledige Database Back-up (Excel .xlsx)", data=out_stream.getvalue(), file_name=f"hijsmiddelen_backup_{datetime.now().strftime('%d-%m-%Y')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="btn_xlsx_backup")
@@ -327,14 +340,11 @@ with rechts:
     with t2:
         df_a = df_g[df_g['status'].isin(["Afgekeurd (Gearchiveerd)", "Niet gevonden (Vermist)"])] if not df_g.empty else pd.DataFrame()
         if not df_a.empty:
-            # VERBETERD (Punt 6): Kolommen zijn nu exact identiek aan Tabblad 1!
-            st.dataframe(df_a[vaste_kolommen], hide_index=True, use_container_width=True)
+            toon_oranje_tabel(df_a[vaste_kolommen])
             st.write("---")
             st.write("📊 **Verdeling van niet-actief materiaal (Archief & Vermist) per status:**")
-            
-            # VERBETERD (Punt 3): Grafiek telt en toont nu zowel Afgekeurd als Vermist samen op het scherm
             df_a_counts = df_a.groupby(['type', 'status']).size().reset_index(name='Aantal')
-            fig_a = px.bar(df_a_counts, x='type', y='Aantal', color='status', text='Aantal', labels={'type': 'Type Hijsmiddel', 'status': 'Status'}, title="Overzicht van afgekeurde en vermiste middelen")
+            fig_a = px.bar(df_a_counts, x='type', y='Aantal', color='status', text='Aantal', hover_data=['type', 'status'], labels={'type': 'Type Hijsmiddel', 'status': 'Status'}, title="Overzicht van afgekeurde en vermiste middelen")
             st.plotly_chart(fig_a, use_container_width=True)
         else: st.info("Het archief is momenteel leeg.")
         
@@ -354,7 +364,7 @@ with rechts:
         if not df_types_filtered.empty:
             df_type_counts = df_types_filtered['type'].value_counts().reset_index()
             df_type_counts.columns = ['Type Omschrijving', 'Totaal in bezit (Aantal)']
-            st.dataframe(df_type_counts, hide_index=True, use_container_width=True)
+            toon_oranje_tabel(df_type_counts)
         else: st.info("Geen data beschikbaar.")
             
     with t5:
