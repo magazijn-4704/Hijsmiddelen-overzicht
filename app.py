@@ -1,4 +1,4 @@
-#Deel 1:  Schone Database & De Nieuwe Logo-Map Logica
+#deel1
 
 import streamlit as st
 import pandas as pd
@@ -53,7 +53,7 @@ else:
 
 st.set_page_config(layout="wide", page_title="Hijsmiddelen Beheer")
 
-# 🖼️ WATERDICHTE LOGO ROUTE: Dwingt de server om te zoeken in de exacte script-map!
+# 🖼️ COORDINEER LOGO: Zoekt direct in de actieve servermap van de app
 kol_titel, kol_logo = st.columns([5.5, 1])
 with kol_titel:
     st.title("🏗️ Centraal Hijsmiddelen Dashboard")
@@ -90,11 +90,12 @@ bekende_locaties = sorted(bekende_locaties)
 
 links, rechts = st.columns([1, 2.3])
 
-#Deel 2A: Toegangsbeheer & Bestaand Object Bewerken
+# Deel2A
 
 with links:
     st.subheader("🔒 Toegangsbeheer")
     
+    # Gebruik session_state om invoervelden geforceerd te kunnen resetten
     if 'admin_wachtwoord' not in st.session_state: st.session_state['admin_wachtwoord'] = ""
     if 'form_id' not in st.session_state: st.session_state['form_id'] = ""
     if 'form_handmat_type' not in st.session_state: st.session_state['form_handmat_type'] = ""
@@ -117,7 +118,7 @@ with links:
         st.subheader("🛠️ Acties")
         modus = st.radio("Wat wil je doen?", ["Bestaand Object Bewerken", "Nieuw Object Toevoegen", "Object Gegevens Wijzigen of Verwijderen"])
         
-        INTERVALS = ["Geen beproeving (Textiel)", "Jaarlijks (1 jaar)", "Om de 4 year (Staal)"]
+        INTERVALS = ["Geen beproeving (Textiel)", "Jaarlijks (1 jaar)", "Om de 4 jaar (Staal)"]
         STATUS_OPTIES = ["Actief", "Afgekeurd (Gearchiveerd)", "Niet gevonden (Vermist)"]
         
         if modus == "Bestaand Object Bewerken" and not df_actueel.empty:
@@ -183,7 +184,7 @@ with links:
                         st.success("✅ Wijzigingen succesvol doorgevoerd!"); st.rerun()
                 else: st.error("❌ Kies minimaal één ID.")
 
-#Deel 2B: Slim Nieuw Object Toevoegen Menu
+#Deel 2b
 
         elif modus == "Nieuw Object Toevoegen":
             st.write("**📝 Voer de gegevens van het nieuwe object in:**")
@@ -191,13 +192,13 @@ with links:
             
             type_opties = ["Kies een type hijsmiddel... ", "--- Handmatig nieuw type invoeren ---"] + bekende_types
             gekozen_type = st.selectbox("Type selecteren:", type_opties, index=st.session_state['sel_type_idx'])
-            handmatig_type = st.text_input("Indien nieuw type, typ hier de benaming:", value=st.session_state['form_handmat_type'])
+            handmatig_type = st.text_input("Indien nieuw type, typ hier de benaming:")
             def_type = handmatig_type.strip() if gekozen_type == "--- Handmatig nieuw type invoeren ---" else gekozen_type
             if gekozen_type == "Kies een type hijsmiddel... ": def_type = ""
             
             loc_opties = ["Kies een locatie... ", "--- Handmatig nieuwe locatie invoeren ---"] + bekende_locaties
             gekozen_loc = st.selectbox("Locatie / Vlootnummer selecteren:", loc_opties, index=st.session_state['sel_loc_idx'])
-            handmatig_loc = st.text_input("Indien nieuwe locatie, typ hier het vlootnummer:", value=st.session_state['form_handmat_loc'])
+            handmatig_loc = st.text_input("Indien nieuwe locatie, typ hier het vlootnummer:")
             def_loc = handmatig_loc.strip() if gekozen_loc == "--- Handmatig nieuwe locatie invoeren ---" else gekozen_loc
             if gekozen_loc == "Kies een locatie... ": def_loc = ""
             
@@ -251,7 +252,7 @@ with links:
                     st.session_state['sel_loc_idx'] = 0
                     st.success("🎉 Succesvol toegevoegd!"); st.rerun()
 
-#Deel 3: Gekleurde HTML-Tabellen op 1 Regel, Blanco Correctiemenu & Gecombineerde Grafiek
+#Deel 3a
 
         elif modus == "Object Gegevens Wijzigen of Verwijderen" and not df_actueel.empty:
             st.write("✏️ **Corrigeer typefouten of verwijder een object permanent**")
@@ -285,22 +286,27 @@ with links:
                                 df_historie = pd.concat([df_historie, nu_log], ignore_index=True)
                                 sla_data_op(df_actueel, df_historie)
                                 st.success("✅ Gegevens succesvol aangepast!"); st.rerun()
-                            else: st.error("❌ Vink eerst het vakje 'Ik weet zeker...' aan.")
+                            else:
+                                st.error("❌ Vink eerst het vakje 'Ik weet zeker...' aan.")
                     with kol2:
                         if st.button("🗑️ Permanent VERWIJDEREN"):
                             if bevestig:
                                 df_actueel = df_actueel[df_actueel['id'] != id_keuze]
-                                nu_log = pd.DataFrame([{'datum': datetime.now().strftime("%d-%m-%Y %H:%M"), 'object_id': id_keuze, 'type': c_type, 'actie': 'Object permanent gewist', 'details': 'Admin'}])
+                                nu_log = pd.DataFrame([{'datum': datetime.now().strftime("%d-%m-%Y %H:%M"), 'object_id': id_keuze, 'type': h_type, 'actie': 'Object permanent gewist', 'details': 'Admin'}])
                                 df_historie = pd.concat([df_historie, nu_log], ignore_index=True)
                                 sla_data_op(df_actueel, df_historie)
                                 st.warning("🗑️ Object permanent verwijderd!"); st.rerun()
-                            else: st.error("❌ Vink eerst het vakje 'Ik weet zeker...' aan.")
+                            else:
+                                st.error("❌ Vink eerst het vakje 'Ik weet zeker...' aan.")
             else:
                 st.info("ℹ️ Selecteer hierboven een ID nummer om de bijbehorende velden te laden.")
     else:
         st.info("ℹ️ **Alleen-lezen modus actief.** Voer bovenaan het admin-wachtwoord in om mutaties, correcties of nieuwe objecten toe te voegen.")
 
 with rechts:
+
+#Deel 3b
+
     st.subheader("📊 Overzichten (Alleen Lezen)")
     zoek = st.text_input("🔍 Snel zoeken (typ ID, type of auto):", key="z_uniek")
     df_g = df_actueel.copy()
@@ -311,14 +317,14 @@ with rechts:
     
     vaste_kolommen = ['id', 'type', 'locatie', 'laatste_keuring', 'volgende_keuring', 'Keur_Status', 'laatste_beproeving', 'volgende_beproeving', 'Beproef_Status', 'status']
 
-    # VERBETERD (Punt 2): De HTML tabel dwingt nu via 'white-space: nowrap' dat alle cellen strak op 1 regel blijven staan!
+    # VERBETERD (Punt 2): HTML-tabel dwingt nu oranje koppen, 1 regel (nowrap) én een verticale schuifbalk af!
     def toon_oranje_tabel(df_tabel):
         html = df_tabel.to_html(index=False, classes='table table-striped')
-        html = html.replace('<thead>', '<thead style="background-color: #ff9800; color: white; white-space: nowrap;">')
+        html = html.replace('<thead>', '<thead style="background-color: #ff9800; color: white; white-space: nowrap; position: sticky; top: 0;">')
         html = html.replace('<td>', '<td style="white-space: nowrap; padding: 8px;">')
         html = html.replace('<th>', '<th style="white-space: nowrap; padding: 8px; text-align: left;">')
         html = html.replace('<tr>', '<tr style="text-align: left;">', 1)
-        st.markdown(f'<div style="overflow-x:auto; width:100%; border:1px solid #ddd; border-radius:5px;">{html}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="overflow-x:auto; overflow-y:auto; max-height:400px; width:100%; border:1px solid #ddd; border-radius:5px;">{html}</div>', unsafe_allow_html=True)
 
     with t1:
         df_r = df_g[~df_g['status'].isin(["Afgekeurd (Gearchiveerd)", "Niet gevonden (Vermist)"])] if not df_g.empty else pd.DataFrame()
@@ -336,10 +342,10 @@ with rechts:
         if not df_a.empty:
             toon_oranje_tabel(df_a[vaste_kolommen])
             st.write("---")
-            st.write("📊 **Verdeling van niet-actief materiaal (Archief & Vermist) per status:**")
-            df_a_counts = df_a.groupby(['type', 'status']).size().reset_index(name='Aantal')
-            # VERBETERD (Punt 3): De Archiefgrafiek laat nu ook netjes ID en Type zien bij eroverheen bewegen!
-            fig_a = px.bar(df_a_counts, x='type', y='Aantal', color='status', text='Aantal', hover_data=['type', 'status'], labels={'type': 'Type Hijsmiddel', 'status': 'Status'}, title="Overzicht van afgekeurde en vermiste middelen")
+            st.write("📊 **Verdeling van niet-actief materiaal (Archief & Vermist):**")
+            
+            # VERBETERD (Punt 3): Gekoppeld aan de losse regels zodat je ID en Type ziet bij eroverheen bewegen!
+            fig_a = px.bar(df_a, x='type', color='status', hover_data=['id', 'type', 'status'], labels={'type': 'Type Hijsmiddel', 'status': 'Status', 'count': 'Aantal middelen'}, title="Overzicht van afgekeurde en vermiste middelen (Beweeg muis over de staven voor ID details)")
             st.plotly_chart(fig_a, use_container_width=True)
         else: st.info("Het archief is momenteel leeg.")
         
@@ -364,3 +370,4 @@ with rechts:
             
     with t5:
         st.dataframe(df_historie.sort_index(ascending=False), use_container_width=True, hide_index=True)
+
