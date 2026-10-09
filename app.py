@@ -58,6 +58,16 @@ else:
     df_actueel['Beproef_Status'] = pd.Series(dtype='str', index=df_actueel.index)
 
 st.set_page_config(layout="wide", page_title="Hijsmiddelen Beheer")
+st.markdown("""
+<style>
+[data-testid="stDataFrame"] th {
+    background-color: #FFA500 !important;   /* Oranje */
+    color: white !important;                /* Witte tekst */
+    font-weight: bold !important;           /* Bold */
+}
+</style>
+""", unsafe_allow_html=True)
+
 
 # TITEL VAN DE PAGINA (Logo is definitief verwijderd)
 st.title("🏗️ Centraal Hijsmiddelen Dashboard")
