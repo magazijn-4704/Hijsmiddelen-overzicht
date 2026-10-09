@@ -1,4 +1,4 @@
-#deel1
+#Deel 1
 
 import streamlit as st
 import pandas as pd
@@ -28,6 +28,7 @@ def sla_data_op(df_actuel, df_hist):
 df_actueel = laad_data('actueel')
 df_historie = laad_data('historie')
 
+# WATERDICHT HERSTEL (Tegen KeyError): Dwingt alle kolommen onmiddellijk in het geheugen
 for col in ['id', 'type', 'locatie', 'laatste_keuring', 'volgende_keuring', 'laatste_beproeving', 'volgende_beproeving', 'status']:
     if col not in df_actueel.columns:
         df_actueel[col] = ""
@@ -45,7 +46,7 @@ def check_status(row, is_bep=False):
         return "🟢 OK"
     except: return "⚪ Fout"
 
-if not df_actueel.empty and len(df_actueel.dropna()) > 0:
+if not df_actueel.empty and len(df_actueel.dropna()) > 0 and 'status' in df_actueel.columns:
     df_actueel['Keur_Status'] = df_actueel.apply(lambda r: check_status(r, False), axis=1)
     df_actueel['Beproef_Status'] = df_actueel.apply(lambda r: check_status(r, True), axis=1)
 else:
@@ -53,22 +54,37 @@ else:
 
 st.set_page_config(layout="wide", page_title="Hijsmiddelen Beheer")
 
-# Gewoon de titel over de volle breedte, zonder logo-gedoe
-st.title("🏗️ Centraal Hijsmiddelen Dashboard")
-
+# 🖼️ LOGO DETECTIE (Punt 5): Zoekt veilig naar jouw geüploade logo-1 bestand
+kol_titel, kol_logo = st.columns([5.5, 1])
+with kol_titel:
+    st.title("🏗️ Centraal Hijsmiddelen Dashboard")
+with kol_logo:
+    script_map = os.path.dirname(__file__) if '__file__' in locals() else os.getcwd()
+    logo_gevonden = False
+    for b_naam in ["logo-1.png", "logo-1.jpg", "logo-1.jpeg"]:
+        v_pad = os.path.join(script_map, b_naam)
+        if os.path.exists(v_pad):
+            try:
+                st.image(v_pad, width=140)
+                logo_gevonden = True
+                break
+            except: pass
+    if not logo_gevonden:
+        st.write("🔄 *Dashboard geladen...*")
 
 # KPI KAARTEN BOVENIN HET SCHERM
-df_ct = df_actueel[~df_actueel['status'].isin(["Afgekeurd (Gearchiveerd)", "Niet gevonden (Vermist)"])] if not df_actueel.empty else pd.DataFrame()
+df_ct = df_actueel[~df_actueel['status'].isin(["Afgekeurd (Gearchiveerd)", "Niet gevonden (Vermist)"])] if not df_actueel.empty and 'status' in df_actueel.columns else pd.DataFrame()
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Totaal Actief Materieel", len(df_ct))
 col2.metric("🔴 Verlopen Keuringen", len(df_ct[df_ct['Keur_Status'] == "🔴 Verlopen"]) if not df_ct.empty else 0)
 col3.metric("🔴 Verlopen Beproevingen", len(df_ct[df_ct['Beproef_Status'] == "🔴 Verlopen"]) if not df_ct.empty else 0)
-col4.metric("⚠️ Vermist Materieel", len(df_actueel[df_actueel['status'] == "Niet gevonden (Vermist)"]) if not df_actueel.empty else 0)
+col4.metric("⚠️ Vermist Materieel", len(df_actueel[df_actueel['status'] == "Niet gevonden (Vermist)"]) if not df_actueel.empty and 'status' in df_actueel.columns else 0)
 
-bekende_types = sorted(list(set(df_actueel['type'].dropna().tolist()))) if not df_actueel.empty else []
+# PUNTE 4: Alle basislijsten worden vanaf nu ALTIJD oplopend gesorteerd (A-Z)
+bekende_types = sorted(list(set(df_actueel['type'].dropna().tolist()))) if not df_actueel.empty and 'type' in df_actueel.columns else []
 bekende_types = [t for t in bekende_types if str(t).strip() != ""]
 
-bekende_locaties = sorted(list(set(df_actueel['locatie'].dropna().tolist()))) if not df_actueel.empty else []
+bekende_locaties = sorted(list(set(df_actueel['locatie'].dropna().tolist()))) if not df_actueel.empty and 'locatie' in df_actueel.columns else []
 bekende_locaties = [l for l in bekende_locaties if str(l).strip() != ""]
 
 for standaard_loc in ['Magazijn A', 'Auto 314', 'Auto 316', 'Auto 317', 'Werkplaats']:
@@ -76,9 +92,13 @@ for standaard_loc in ['Magazijn A', 'Auto 314', 'Auto 316', 'Auto 317', 'Werkpla
         bekende_locaties.append(standaard_loc)
 bekende_locaties = sorted(bekende_locaties)
 
+# ID lijst strak oplopend sorteren voor de actiemenu's dadelijk
+gesorteerde_ids = sorted(df_actueel['id'].dropna().tolist()) if not df_actueel.empty and 'id' in df_actueel.columns else []
+gesorteerde_ids = [str(x) for x in gesorteerde_ids if str(x).strip() != ""]
+
 links, rechts = st.columns([1, 2.3])
 
-# Deel2A
+#Deel 2A
 
 with links:
     st.subheader("🔒 Toegangsbeheer")
@@ -110,7 +130,8 @@ with links:
         STATUS_OPTIES = ["Actief", "Afgekeurd (Gearchiveerd)", "Niet gevonden (Vermist)"]
         
         if modus == "Bestaand Object Bewerken" and not df_actueel.empty:
-            sel_ids = st.multiselect("Stap 1: Kies ID-nummers:", df_actueel['id'].tolist(), default=st.session_state['bew_ids'], key="m_sel")
+            # PUNT 4: Maakt gebruik van de strak oplopend gesorteerde ID-lijst (A-Z)
+            sel_ids = st.multiselect("Stap 1: Kies ID-nummers:", gesorteerde_ids, default=st.session_state['bew_ids'], key="m_sel")
             n_loc_keuze = st.selectbox("Verplaats naar locatie:", ["Geen wijziging"] + bekende_locaties + ["Gearchiveerd", "Vermist"])
             n_stat = st.selectbox("Wijzig status naar:", ["Geen wijziging"] + STATUS_OPTIES)
             
@@ -131,13 +152,13 @@ with links:
                         for oid in sel_ids:
                             masker = df_actueel['id'] == oid
                             if masker.any():
-                                h_loc = df_actueel.loc[masker, 'locatie'].values[0]
-                                h_stat = df_actueel.loc[masker, 'status'].values[0]
-                                h_type = df_actueel.loc[masker, 'type'].values[0]
-                                h_l_kr = df_actueel.loc[masker, 'laatste_keuring'].values[0]
-                                h_v_kr = df_actueel.loc[masker, 'volgende_keuring'].values[0]
-                                h_l_bp = df_actueel.loc[masker, 'laatste_beproeving'].values[0]
-                                h_v_bp = df_actueel.loc[masker, 'volgende_beproeving'].values[0]
+                                h_loc = df_actueel.loc[masker, 'locatie'].values
+                                h_stat = df_actueel.loc[masker, 'status'].values
+                                h_type = df_actueel.loc[masker, 'type'].values
+                                h_l_kr = df_actueel.loc[masker, 'laatste_keuring'].values
+                                h_v_kr = df_actueel.loc[masker, 'volgende_keuring'].values
+                                h_l_bp = df_actueel.loc[masker, 'laatste_beproeving'].values
+                                h_v_bp = df_actueel.loc[masker, 'volgende_beproeving'].values
                                 
                                 v_loc = n_loc_keuze if n_loc_keuze != "Geen wijziging" else h_loc
                                 v_stat = n_stat if n_stat != "Geen wijziging" else h_stat
@@ -172,7 +193,7 @@ with links:
                         st.success("✅ Wijzigingen succesvol doorgevoerd!"); st.rerun()
                 else: st.error("❌ Kies minimaal één ID.")
 
-#Deel 2b
+#Deel 2B
 
         elif modus == "Nieuw Object Toevoegen":
             st.write("**📝 Voer de gegevens van het nieuwe object in:**")
@@ -222,8 +243,15 @@ with links:
             except: st.session_state['sel_loc_idx'] = 0
             
             if st.button("💾 Object Opslaan"):
+                # PUNT 3: Controleer of het ID nummer al bestaat in de database
+                id_bestaat_al = False
+                if not df_actueel.empty and 'id' in df_actueel.columns:
+                    id_bestaat_al = n_id in df_actueel['id'].astype(str).str.strip().tolist()
+                
                 if not (n_id and def_type and def_loc):
                     st.error("❌ ID, Type en Locatie zijn verplicht! Kies aub geldige waardes. Jouw ingevulde tekst is bewaard.")
+                elif id_bestaat_al:
+                    st.error(f"❌ Het ID nummer '{n_id}' bestaat al in de database! Kies een uniek ID nummer.")
                 elif beproevings_fout:
                     st.error("❌ Je hebt aangegeven dat het object beproefd is, maar geen interval (1 of 4 jaar) gekozen!")
                 else:
@@ -240,12 +268,13 @@ with links:
                     st.session_state['sel_loc_idx'] = 0
                     st.success("🎉 Succesvol toegevoegd!"); st.rerun()
 
-#Deel 3a
+#Deel 3A
 
         elif modus == "Object Gegevens Wijzigen of Verwijderen" and not df_actueel.empty:
             st.write("✏️ **Corrigeer typefouten of verwijder een object permanent**")
             
-            id_opties = ["Kies een ID nummer..."] + df_actueel['id'].tolist()
+            # PUNT 4: De ID-keuzelijst is nu strak oplopend alfabetisch gesorteerd (A-Z)
+            id_opties = ["Kies een ID nummer..."] + gesorteerde_ids
             id_keuze = st.selectbox("Selecteer het te corrigeren ID nummer:", id_opties, index=0)
             
             if id_keuze != "Kies een ID nummer...":
@@ -293,7 +322,7 @@ with links:
 
 with rechts:
 
-#Deel 3b
+#Deel 3B
 
     st.subheader("📊 Overzichten (Alleen Lezen)")
     zoek = st.text_input("🔍 Snel zoeken (typ ID, type of auto):", key="z_uniek")
@@ -305,20 +334,24 @@ with rechts:
     
     vaste_kolommen = ['id', 'type', 'locatie', 'laatste_keuring', 'volgende_keuring', 'Keur_Status', 'laatste_beproeving', 'volgende_beproeving', 'Beproef_Status', 'status']
 
-    # VERBETERD (Punt 2): HTML-tabel dwingt nu oranje koppen, 1 regel (nowrap) én een verticale schuifbalk af!
-    def toon_oranje_tabel(df_tabel):
-        html = df_tabel.to_html(index=False, classes='table table-striped')
-        html = html.replace('<thead>', '<thead style="background-color: #ff9800; color: white; white-space: nowrap; position: sticky; top: 0;">')
-        html = html.replace('<td>', '<td style="white-space: nowrap; padding: 8px;">')
-        html = html.replace('<th>', '<th style="white-space: nowrap; padding: 8px; text-align: left;">')
-        html = html.replace('<tr>', '<tr style="text-align: left;">', 1)
-        st.markdown(f'<div style="overflow-x:auto; overflow-y:auto; max-height:400px; width:100%; border:1px solid #ddd; border-radius:5px;">{html}</div>', unsafe_allow_html=True)
+    # DESIGN: Dwingt de ingebouwde Streamlit tabellen om ORANJE kolomkoppen met witte tekst te krijgen!
+    st.markdown("""
+        <style>
+            div[data-testid="stDataFrame"] iframe, 
+            div[data-testid="stDataFrame"] data-grid-canvas,
+            div[data-testid="stDataFrame"] th { 
+                background-color: #ff9800 !important; 
+                color: white !important; 
+            }
+        </style>
+    """, unsafe_allow_html=True)
 
     with t1:
         df_r = df_g[~df_g['status'].isin(["Afgekeurd (Gearchiveerd)", "Niet gevonden (Vermist)"])] if not df_g.empty else pd.DataFrame()
         df_r = df_r[df_r['id'] != ""]
         if not df_r.empty:
-            toon_oranje_tabel(df_r[vaste_kolommen])
+            # PUNT 1 & 2: Volledig interactieve, sorteerbare tabel met schuifbalken en verberg-opties
+            st.dataframe(df_r[vaste_kolommen], hide_index=True, use_container_width=True, height=400)
             st.write("")
             out_stream = io.BytesIO()
             with pd.ExcelWriter(out_stream, engine='openpyxl') as w: df_actueel.to_excel(w, sheet_name='actueel', index=False); df_historie.to_excel(w, sheet_name='historie', index=False)
@@ -328,11 +361,11 @@ with rechts:
     with t2:
         df_a = df_g[df_g['status'].isin(["Afgekeurd (Gearchiveerd)", "Niet gevonden (Vermist)"])] if not df_g.empty else pd.DataFrame()
         if not df_a.empty:
-            toon_oranje_tabel(df_a[vaste_kolommen])
+            st.dataframe(df_a[vaste_kolommen], hide_index=True, use_container_width=True, height=400)
             st.write("---")
             st.write("📊 **Verdeling van niet-actief materiaal (Archief & Vermist):**")
             
-            # VERBETERD (Punt 3): Gekoppeld aan de losse regels zodat je ID en Type ziet bij eroverheen bewegen!
+            # PUNT 3: De Archiefgrafiek toont nu ook netjes ID en Type bij eroverheen bewegen!
             fig_a = px.bar(df_a, x='type', color='status', hover_data=['id', 'type', 'status'], labels={'type': 'Type Hijsmiddel', 'status': 'Status', 'count': 'Aantal middelen'}, title="Overzicht van afgekeurde en vermiste middelen (Beweeg muis over de staven voor ID details)")
             st.plotly_chart(fig_a, use_container_width=True)
         else: st.info("Het archief is momenteel leeg.")
@@ -353,9 +386,10 @@ with rechts:
         if not df_types_filtered.empty:
             df_type_counts = df_types_filtered['type'].value_counts().reset_index()
             df_type_counts.columns = ['Type Omschrijving', 'Totaal in bezit (Aantal)']
-            toon_oranje_tabel(df_type_counts)
+            st.dataframe(df_type_counts, hide_index=True, use_container_width=True, height=400)
         else: st.info("Geen data beschikbaar.")
             
     with t5:
-        st.dataframe(df_historie.sort_index(ascending=False), use_container_width=True, hide_index=True)
+        st.dataframe(df_historie.sort_index(ascending=False), use_container_width=True, hide_index=True, height=400)
+
 
