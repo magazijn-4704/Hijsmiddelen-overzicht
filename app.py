@@ -9,9 +9,12 @@ from datetime import datetime, timedelta
 
 EXCEL_FILE = "hijsmiddelen_database.xlsx"
 
-# 1. INITIALISATIE: Maak een SCHONE Excel aan als deze nog niet bestaat
+# Vaste kolommen die ALTIJD aanwezig moeten zijn
+VASTE_KOLOMMEN = ['id', 'type', 'locatie', 'laatste_keuring', 'volgende_keuring', 'laatste_beproeving', 'volgende_beproeving', 'status']
+
+# 1. INITIALISATIE: Maak een SCHONE Excel aan met alle kolommen
 if not os.path.exists(EXCEL_FILE):
-    df_actueel = pd.DataFrame(columns=['id', 'type', 'locatie', 'laatste_keuring', 'volgende_keuring', 'laatste_beproeving', 'volgende_beproeving', 'status'])
+    df_actueel = pd.DataFrame(columns=VASTE_KOLOMMEN)
     df_historie = pd.DataFrame(columns=['datum', 'object_id', 'type', 'actie', 'details'])
     with pd.ExcelWriter(EXCEL_FILE, engine='openpyxl') as writer:
         df_actueel.to_excel(writer, sheet_name='actueel', index=False)
@@ -20,10 +23,16 @@ if not os.path.exists(EXCEL_FILE):
 def laad_data(sheet):
     try:
         df = pd.read_excel(EXCEL_FILE, sheet_name=sheet, dtype=object)
-        return df.fillna("")
+        df = df.fillna("")
+        # Zorg dat bij het inladen ALTIJD alle kolommen bestaan
+        if sheet == 'actueel':
+            for col in VASTE_KOLOMMEN:
+                if col not in df.columns:
+                    df[col] = ""
+        return df
     except:
         if sheet == 'actueel':
-            return pd.DataFrame(columns=['id', 'type', 'locatie', 'laatste_keuring', 'volgende_keuring', 'laatste_beproeving', 'volgende_beproeving', 'status'])
+            return pd.DataFrame(columns=VASTE_KOLOMMEN)
         else:
             return pd.DataFrame(columns=['datum', 'object_id', 'type', 'actie', 'details'])
 
@@ -41,12 +50,13 @@ if 'df_historie' not in st.session_state:
 df_actueel = st.session_state['df_actueel']
 df_historie = st.session_state['df_historie']
 
-# Veiligheidsnet tegen missende kolommen
-for col in ['id', 'type', 'locatie', 'laatste_keuring', 'volgende_keuring', 'laatste_beproeving', 'volgende_beproeving', 'status']:
+# Extra controle om kolommen in het actieve geheugen te garanderen
+for col in VASTE_KOLOMMEN:
     if col not in df_actueel.columns:
         df_actueel[col] = ""
 
 vandaag = datetime.now().date()
+
 
 #Deel 2
 
