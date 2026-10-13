@@ -208,17 +208,19 @@ with links:
 
 #Deel 3a
 
-        elif modus == "Nieuw Object Toevoegen":
+               elif modus == "Nieuw Object Toevoegen":
             st.write("**📝 Voer de gegevens van het nieuwe object in:**")
             n_id = st.text_input("Uniek ID Nummer (bijv. PL-001):", value=st.session_state['form_id']).strip()
             
-            type_opties = ["Kies een type hijsmiddel... ", "--- Handmatig nieuw type invoeren ---"] + bekende_types
+            # --- GEFORCEERDE ALFABETISCHE SORTERING RECHTSTREEKS IN DE DROPDOWN ---
+            type_opties = ["Kies een type hijsmiddel... ", "--- Handmatig nieuw type invoeren ---"] + sorted(list(set(bekende_types)))
             gekozen_type = st.selectbox("Type selecteren:", type_opties, key=f"sb_type_{st.session_state['reset_counter']}")
             handmatig_type = st.text_input("Indien nieuw type, typ hier de benaming:", value=st.session_state['form_handmat_type'])
             def_type = handmatig_type.strip() if gekozen_type == "--- Handmatig nieuw type invoeren ---" else gekozen_type
             if gekozen_type == "Kies een type hijsmiddel... ": def_type = ""
             
-            loc_opties = ["Kies een locatie... ", "--- Handmatig nieuwe locatie invoeren ---"] + bekende_locaties
+            # --- GEFORCEERDE ALFABETISCHE SORTERING RECHTSTREEKS IN DE DROPDOWN ---
+            loc_opties = ["Kies een locatie... ", "--- Handmatig nieuwe locatie invoeren ---"] + sorted(list(set(bekende_locaties)))
             gekozen_loc = st.selectbox("Locatie / Vlootnummer selecteren:", loc_opties, key=f"sb_loc_{st.session_state['reset_counter']}")
             handmatig_loc = st.text_input("Indien nieuwe locatie, typ hier het vlootnummer:", value=st.session_state['form_handmat_loc'])
             def_loc = handmatig_loc.strip() if gekozen_loc == "--- Handmatig nieuwe locatie invoeren ---" else gekozen_loc
@@ -271,14 +273,15 @@ with links:
                     st.session_state['df_historie'] = df_historie
                     sla_data_op(df_actueel, df_historie)
                     
-                    # HARD RESET VIA RESETS EN VEILIGE COUNTER-INCREMENT
+                    # HARD RESET VAN ALLE INPUTS EN DROPDOWNS
                     st.session_state['form_id'] = ""
                     st.session_state['form_handmat_type'] = ""
                     st.session_state['form_handmat_loc'] = ""
-                    st.session_state['reset_counter'] += 1  # Verhoogt de teller, dwingt dropdowns naar index 0!
+                    st.session_state['reset_counter'] += 1
                     
                     st.success("🎉 Succesvol toegevoegd!")
                     st.rerun()
+
 
 #Deel 3b
 
