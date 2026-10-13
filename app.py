@@ -208,21 +208,23 @@ with links:
             st.write("**📝 Voer de gegevens van het nieuwe object in:**")
             n_id = st.text_input("Uniek ID Nummer (bijv. PL-001):", value=st.session_state['form_id']).strip()
             
-            # --- LIVE ALFABETISCHE SORTERING VAN DE TYPES ---
-            schone_types = [str(t).strip() for t in bekende_types if str(t).strip() not in ["", "nan"]]
-            type_opties = ["Kies een type hijsmiddel... ", "--- Handmatig nieuw type invoeren ---"] + sorted(list(set(schone_types)))
-            gekozen_type = st.selectbox("Type selecteren:", type_opties, key=f"sb_type_{st.session_state['reset_counter']}")
-            handmatig_type = st.text_input("Indien nieuw type, typ hier de benaming:", value=st.session_state['form_handmat_type'])
-            def_type = handmatig_type.strip() if gekozen_type == "--- Handmatig nieuw type invoeren ---" else gekozen_type
-            if gekozen_type == "Kies een type hijsmiddel... ": def_type = ""
-            
-            # --- LIVE ALFABETISCHE SORTERING VAN DE LOCATIES ---
-            schone_locaties = [str(l).strip() for l in bekende_locaties if str(l).strip() not in ["", "nan", "Gearchiveerd", "Vermist"]]
-            loc_opties = ["Kies een locatie... ", "--- Handmatig nieuwe locatie invoeren ---"] + sorted(list(set(schone_locaties)))
-            gekozen_loc = st.selectbox("Locatie / Vlootnummer selecteren:", loc_opties, key=f"sb_loc_{st.session_state['reset_counter']}")
-            handmatig_loc = st.text_input("Indien nieuwe locatie, typ hier het vlootnummer:", value=st.session_state['form_handmat_loc'])
-            def_loc = handmatig_loc.strip() if gekozen_loc == "--- Handmatig nieuwe locatie invoeren ---" else gekozen_loc
-            if gekozen_loc == "Kies een locatie... ": def_loc = ""
+ # VERBETERD: Dropdown start nu blanco verplicht!
+                type_opties = ["Kies een type hijsmiddel... ", "--- Handmatig nieuw type invoeren ---"] + bekende_types
+                gekozen_type = st.selectbox("Type selecteren:", type_opties, index=0)
+                handmatig_type = st.text_input("Indien nieuw type, typ hier de benaming:")
+                
+                if gekozen_type == "Kies een type hijsmiddel... ": def_type = ""
+                elif gekozen_type == "--- Handmatig nieuw type invoeren ---": def_type = handmatig_type.strip()
+                else: def_type = gekozen_type
+                
+                # VERBETERD: Dropdown start nu blanco verplicht!
+                loc_opties = ["Kies een locatie... ", "--- Handmatig nieuwe locatie invoeren ---"] + bekende_locaties
+                gekozen_loc = st.selectbox("Locatie / Vlootnummer selecteren:", loc_opties, index=0)
+                handmatig_loc = st.text_input("Indien nieuwe locatie, typ hier het vlootnummer:")
+                
+                if gekozen_loc == "Kies een locatie... ": def_loc = ""
+                elif gekozen_loc == "--- Handmatig nieuwe locatie invoeren ---": def_loc = handmatig_loc.strip()
+                else: def_loc = gekozen_loc
             
             st.write("---")
             st.write("**📅 Datums invoeren:**")
