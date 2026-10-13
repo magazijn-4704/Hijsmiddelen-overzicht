@@ -70,7 +70,6 @@ else:
     df_actueel['Keur_Status'] = pd.Series(dtype='str', index=df_actueel.index)
     df_actueel['Beproef_Status'] = pd.Series(dtype='str', index=df_actueel.index)
 
-
 #Deel 2
 
 st.set_page_config(layout="wide", page_title="Hijsmiddelen Beheer")
@@ -92,12 +91,12 @@ bekende_types = [t for t in bekende_types if str(t).strip() not in ["", "Kies ee
 database_locaties = list(set(df_actueel['locatie'].dropna().tolist())) if not df_actueel.empty and 'locatie' in df_actueel.columns else []
 database_locaties = [l for l in database_locaties if str(l).strip() not in ["", "Kies een locatie... ", "--- Handmatig nieuwe locatie invoeren ---", "Gearchiveerd", "Vermist"]]
 
-# Vaste basislocaties toevoegen als ze nog niet bestaan
+# Vaste basislocaties toevoegen
 for standaard_loc in ['Magazijn A', 'Magazijn D', 'Voertuig 316', 'Voertuig 317', 'Werkplaats']:
     if standaard_loc not in database_locaties:
         database_locaties.append(standaard_loc)
 
-# HIER WORDT DE DROPDOWN LIJST ECHT OPLOPEND GESORTEERD (A-Z)
+# HIER WORDT DE DROPDOWN LIJST ECHT OPLOPEND GESORTEERD
 bekende_locaties = sorted(database_locaties)
 
 gesorteerde_ids = sorted(df_actueel['id'].dropna().tolist()) if not df_actueel.empty and 'id' in df_actueel.columns else []
@@ -113,9 +112,8 @@ with links:
     if 'form_handmat_type' not in st.session_state: st.session_state['form_handmat_type'] = ""
     if 'form_handmat_loc' not in st.session_state: st.session_state['form_handmat_loc'] = ""
     
-    # Unieke sleutels (keys) instellen voor de dropdown-resets
-    if 'sb_type_key' not in st.session_state: st.session_state['sb_type_key'] = "Kies een type hijsmiddel... "
-    if 'sb_loc_key' not in st.session_state: st.session_state['sb_loc_key'] = "Kies een locatie... "
+    # Reset counter initialiseren (deze zorgt voor de veilige reset van de dropdowns)
+    if 'reset_counter' not in st.session_state: st.session_state['reset_counter'] = 0
     if 'bew_ids' not in st.session_state: st.session_state['bew_ids'] = []
 
     wachtwoord_invoer = st.text_input("Voer admin-wachtwoord in voor wijzigingen:", value=st.session_state['admin_wachtwoord'], type="password")
@@ -202,19 +200,20 @@ with links:
                         st.rerun()
                 else: st.error("❌ Kies minimaal één ID.")
 
+#Deel 3a
 
         elif modus == "Nieuw Object Toevoegen":
             st.write("**📝 Voer de gegevens van het nieuwe object in:**")
             n_id = st.text_input("Uniek ID Nummer (bijv. PL-001):", value=st.session_state['form_id']).strip()
             
             type_opties = ["Kies een type hijsmiddel... ", "--- Handmatig nieuw type invoeren ---"] + bekende_types
-            gekozen_type = st.selectbox("Type selecteren:", type_opties, key="sb_type_key")
+            gekozen_type = st.selectbox("Type selecteren:", type_opties, key=f"sb_type_{st.session_state['reset_counter']}")
             handmatig_type = st.text_input("Indien nieuw type, typ hier de benaming:", value=st.session_state['form_handmat_type'])
             def_type = handmatig_type.strip() if gekozen_type == "--- Handmatig nieuw type invoeren ---" else gekozen_type
             if gekozen_type == "Kies een type hijsmiddel... ": def_type = ""
             
             loc_opties = ["Kies een locatie... ", "--- Handmatig nieuwe locatie invoeren ---"] + bekende_locaties
-            gekozen_loc = st.selectbox("Locatie / Vlootnummer selecteren:", loc_opties, key="sb_loc_key")
+            gekozen_loc = st.selectbox("Locatie / Vlootnummer selecteren:", loc_opties, key=f"sb_loc_{st.session_state['reset_counter']}")
             handmatig_loc = st.text_input("Indien nieuwe locatie, typ hier het vlootnummer:", value=st.session_state['form_handmat_loc'])
             def_loc = handmatig_loc.strip() if gekozen_loc == "--- Handmatig nieuwe locatie invoeren ---" else gekozen_loc
             if gekozen_loc == "Kies een locatie... ": def_loc = ""
@@ -266,15 +265,16 @@ with links:
                     st.session_state['df_historie'] = df_historie
                     sla_data_op(df_actueel, df_historie)
                     
-                    # HARD RESET VAN ALLE INPUTS EN DROPDOWNS
+                    # HARD RESET VIA RESETS EN VEILIGE COUNTER-INCREMENT
                     st.session_state['form_id'] = ""
                     st.session_state['form_handmat_type'] = ""
                     st.session_state['form_handmat_loc'] = ""
-                    st.session_state['sb_type_key'] = "Kies een type hijsmiddel... "
-                    st.session_state['sb_loc_key'] = "Kies een locatie... "
+                    st.session_state['reset_counter'] += 1  # Verhoogt de teller, dwingt dropdowns naar index 0!
                     
                     st.success("🎉 Succesvol toegevoegd!")
                     st.rerun()
+
+#Deel 3b
 
         elif modus == "Object Gegevens Wijzigen of Verwijderen" and not df_actueel.empty:
             st.write("✏️ **Corrigeer typefouten of verwijder een object permanent**")
@@ -377,4 +377,3 @@ with rechts:
             
     with t5:
         st.dataframe(df_historie.sort_index(ascending=False), use_container_width=True, hide_index=True, height=400)
-
