@@ -17,7 +17,6 @@ if not os.path.exists(EXCEL_FILE):
 
 def laad_data(sheet):
     try:
-        # We dwingen pandas om alle cellen als tekst (object) te lezen tegen datumfouten
         df = pd.read_excel(EXCEL_FILE, sheet_name=sheet, dtype=object)
         return df.fillna("")
     except Exception as e:
@@ -31,7 +30,7 @@ def sla_data_op(df_actuel, df_hist):
         df_actuel.to_excel(writer, sheet_name='actueel', index=False)
         df_hist.to_excel(writer, sheet_name='historie', index=False)
 
-# Gebruik session_state zodat Streamlit mutaties onthoudt bij het herladen van de pagina
+# Session state initialiseren voor data
 if 'df_actueel' not in st.session_state:
     st.session_state['df_actueel'] = laad_data('actueel')
 if 'df_historie' not in st.session_state:
@@ -56,17 +55,14 @@ def check_status(row, is_bep=False):
         return ""
     
     try:
-        # Flexibele datum-herkenning: herkent zowel DD-MM-YYYY als Excel computerdatums (ISO)
         parsed_dt = pd.to_datetime(str(dt_str).strip(), dayfirst=True, errors='raise')
         v_dt = parsed_dt.date()
-        
         if v_dt < vandaag: return "🔴 Verlopen"
         if v_dt <= vandaag + timedelta(days=30): return "🟠 Binnenkort"
         return "🟢 OK"
     except: 
         return "⚪ Fout"
 
-# Status altijd up-to-date herberekenen
 if not df_actueel.empty and 'status' in df_actueel.columns:
     df_actueel['Keur_Status'] = df_actueel.apply(lambda r: check_status(r, False), axis=1)
     df_actueel['Beproef_Status'] = df_actueel.apply(lambda r: check_status(r, True), axis=1)
@@ -75,11 +71,12 @@ else:
     df_actueel['Beproef_Status'] = pd.Series(dtype='str', index=df_actueel.index)
 
 
-st.set_page_config(layout="wide", page_title="Hijsmiddelen Beheer")
+#Deel 2
 
+st.set_page_config(layout="wide", page_title="Hijsmiddelen Beheer")
 st.title("🏗️ Centraal Hijsmiddelen Dashboard")
 
-# KPI KAARTEN BOVENIN HET SCHERM (Nu met extra check om lege rijen/ID's te negeren)
+# KPI KAARTEN BOVENIN HET SCHERM
 df_ct = df_actueel[~df_actueel['status'].isin(["Afgekeurd (Gearchiveerd)", "Niet gevonden (Vermist)"]) & (df_actueel['id'] != "")] if not df_actueel.empty and 'status' in df_actueel.columns else pd.DataFrame()
 
 col1, col2, col3, col4 = st.columns(4)
@@ -88,24 +85,19 @@ col2.metric("🔴 Verlopen Keuringen", len(df_ct[df_ct['Keur_Status'] == "🔴 V
 col3.metric("🔴 Verlopen Beproevingen", len(df_ct[df_ct['Beproef_Status'] == "🔴 Verlopen"]) if not df_ct.empty else 0)
 col4.metric("⚠️ Vermist Materieel", len(df_actueel[df_actueel['status'] == "Niet gevonden (Vermist)"]) if not df_actueel.empty and 'status' in df_actueel.columns else 0)
 
-# Lijsten voor selectboxen genereren
+# TYPES EN LOCATIES OPHALEN EN OPLOPEND SORTEREN
 bekende_types = sorted(list(set(df_actueel['type'].dropna().tolist()))) if not df_actueel.empty and 'type' in df_actueel.columns else []
-bekende_types = [t for t in bekende_types if str(t).strip() != ""]
+bekende_types = [t for t in bekende_types if str(t).strip() not in ["", "Kies een type hijsmiddel... ", "--- Handmatig nieuw type invoeren ---"]]
 
-# Types ophalen en sorteren
-bekende_types = sorted(list(set(df_actueel['type'].dropna().tolist()))) if not df_actueel.empty and 'type' in df_actueel.columns else []
-bekende_types = [t for t in bekende_types if str(t).strip() != ""]
-
-# 1. Haal alle unieke locaties op uit de database (zonder helpteksten of archiefstatussen)
 database_locaties = list(set(df_actueel['locatie'].dropna().tolist())) if not df_actueel.empty and 'locatie' in df_actueel.columns else []
 database_locaties = [l for l in database_locaties if str(l).strip() not in ["", "Kies een locatie... ", "--- Handmatig nieuwe locatie invoeren ---", "Gearchiveerd", "Vermist"]]
 
-# 2. Voeg de vaste standaardlocaties toe als ze er nog niet in stonden
+# Vaste basislocaties toevoegen als ze nog niet bestaan
 for standaard_loc in ['Magazijn A', 'Magazijn D', 'Voertuig 316', 'Voertuig 317', 'Werkplaats']:
     if standaard_loc not in database_locaties:
         database_locaties.append(standaard_loc)
 
-# 3. Sorteer de lijst NU oplopend (A-Z) vóórdat we later de helpteksten toevoegen
+# HIER WORDT DE DROPDOWN LIJST ECHT OPLOPEND GESORTEERD (A-Z)
 bekende_locaties = sorted(database_locaties)
 
 gesorteerde_ids = sorted(df_actueel['id'].dropna().tolist()) if not df_actueel.empty and 'id' in df_actueel.columns else []
@@ -120,8 +112,10 @@ with links:
     if 'form_id' not in st.session_state: st.session_state['form_id'] = ""
     if 'form_handmat_type' not in st.session_state: st.session_state['form_handmat_type'] = ""
     if 'form_handmat_loc' not in st.session_state: st.session_state['form_handmat_loc'] = ""
-    if 'sel_type_idx' not in st.session_state: st.session_state['sel_type_idx'] = 0
-    if 'sel_loc_idx' not in st.session_state: st.session_state['sel_loc_idx'] = 0
+    
+    # Unieke sleutels (keys) instellen voor de dropdown-resets
+    if 'sb_type_key' not in st.session_state: st.session_state['sb_type_key'] = "Kies een type hijsmiddel... "
+    if 'sb_loc_key' not in st.session_state: st.session_state['sb_loc_key'] = "Kies een locatie... "
     if 'bew_ids' not in st.session_state: st.session_state['bew_ids'] = []
 
     wachtwoord_invoer = st.text_input("Voer admin-wachtwoord in voor wijzigingen:", value=st.session_state['admin_wachtwoord'], type="password")
@@ -163,13 +157,13 @@ with links:
                         for oid in sel_ids:
                             masker = df_actueel['id'] == oid
                             if masker.any():
-                                h_loc = df_actueel.loc[masker, 'locatie'].values[0]
-                                h_stat = df_actueel.loc[masker, 'status'].values[0]
-                                h_type = df_actueel.loc[masker, 'type'].values[0]
-                                h_l_kr = df_actueel.loc[masker, 'laatste_keuring'].values[0]
-                                h_v_kr = df_actueel.loc[masker, 'volgende_keuring'].values[0]
-                                h_l_bp = df_actueel.loc[masker, 'laatste_beproeving'].values[0]
-                                h_v_bp = df_actueel.loc[masker, 'volgende_beproeving'].values[0]
+                                h_loc = df_actueel.loc[masker, 'locatie'].values
+                                h_stat = df_actueel.loc[masker, 'status'].values
+                                h_type = df_actueel.loc[masker, 'type'].values
+                                h_l_kr = df_actueel.loc[masker, 'laatste_keuring'].values
+                                h_v_kr = df_actueel.loc[masker, 'volgende_keuring'].values
+                                h_l_bp = df_actueel.loc[masker, 'laatste_beproeving'].values
+                                h_v_bp = df_actueel.loc[masker, 'volgende_beproeving'].values
                                 
                                 v_loc = n_loc_keuze if n_loc_keuze != "Geen wijziging" else h_loc
                                 v_stat = n_stat if n_stat != "Geen wijziging" else h_stat
@@ -200,7 +194,6 @@ with links:
                                 nu_log = pd.DataFrame([{'datum': datetime.now().strftime("%d-%m-%Y %H:%M"), 'object_id': oid, 'type': h_type, 'actie': f"Bewerkt (Status: {v_stat} | Locatie: {v_loc})", 'details': 'Admin'}])
                                 df_historie = pd.concat([df_historie, nu_log], ignore_index=True)
                         
-                        # Direct synchroniseren met session_state en Excel
                         st.session_state['df_actueel'] = df_actueel
                         st.session_state['df_historie'] = df_historie
                         sla_data_op(df_actueel, df_historie)
@@ -209,18 +202,19 @@ with links:
                         st.rerun()
                 else: st.error("❌ Kies minimaal één ID.")
 
+
         elif modus == "Nieuw Object Toevoegen":
             st.write("**📝 Voer de gegevens van het nieuwe object in:**")
             n_id = st.text_input("Uniek ID Nummer (bijv. PL-001):", value=st.session_state['form_id']).strip()
             
             type_opties = ["Kies een type hijsmiddel... ", "--- Handmatig nieuw type invoeren ---"] + bekende_types
-            gekozen_type = st.selectbox("Type selecteren:", type_opties, index=st.session_state['sel_type_idx'])
+            gekozen_type = st.selectbox("Type selecteren:", type_opties, key="sb_type_key")
             handmatig_type = st.text_input("Indien nieuw type, typ hier de benaming:", value=st.session_state['form_handmat_type'])
             def_type = handmatig_type.strip() if gekozen_type == "--- Handmatig nieuw type invoeren ---" else gekozen_type
             if gekozen_type == "Kies een type hijsmiddel... ": def_type = ""
             
             loc_opties = ["Kies een locatie... ", "--- Handmatig nieuwe locatie invoeren ---"] + bekende_locaties
-            gekozen_loc = st.selectbox("Locatie / Vlootnummer selecteren:", loc_opties, index=st.session_state['sel_loc_idx'])
+            gekozen_loc = st.selectbox("Locatie / Vlootnummer selecteren:", loc_opties, key="sb_loc_key")
             handmatig_loc = st.text_input("Indien nieuwe locatie, typ hier het vlootnummer:", value=st.session_state['form_handmat_loc'])
             def_loc = handmatig_loc.strip() if gekozen_loc == "--- Handmatig nieuwe locatie invoeren ---" else gekozen_loc
             if gekozen_loc == "Kies een locatie... ": def_loc = ""
@@ -250,10 +244,6 @@ with links:
             st.session_state['form_id'] = n_id
             st.session_state['form_handmat_type'] = handmatig_type
             st.session_state['form_handmat_loc'] = handmatig_loc
-            try: st.session_state['sel_type_idx'] = type_opties.index(gekozen_type)
-            except: st.session_state['sel_type_idx'] = 0
-            try: st.session_state['sel_loc_idx'] = loc_opties.index(gekozen_loc)
-            except: st.session_state['sel_loc_idx'] = 0
             
             if st.button("💾 Object Opslaan"):
                 id_bestaat_al = False
@@ -276,13 +266,13 @@ with links:
                     st.session_state['df_historie'] = df_historie
                     sla_data_op(df_actueel, df_historie)
                     
-             # Maak ALLES geforceerd leeg en reset de dropdowns naar index 0
+                    # HARD RESET VAN ALLE INPUTS EN DROPDOWNS
                     st.session_state['form_id'] = ""
                     st.session_state['form_handmat_type'] = ""
                     st.session_state['form_handmat_loc'] = ""
-                    st.session_state['sel_type_idx'] = 0
-                    st.session_state['sel_loc_idx'] = 0
-
+                    st.session_state['sb_type_key'] = "Kies een type hijsmiddel... "
+                    st.session_state['sb_loc_key'] = "Kies een locatie... "
+                    
                     st.success("🎉 Succesvol toegevoegd!")
                     st.rerun()
 
@@ -387,3 +377,4 @@ with rechts:
             
     with t5:
         st.dataframe(df_historie.sort_index(ascending=False), use_container_width=True, hide_index=True, height=400)
+
