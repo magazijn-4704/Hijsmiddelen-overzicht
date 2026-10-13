@@ -290,75 +290,122 @@ with links:
 
 #Deel 4b
 
-        elif modus == "Nieuw Object Toevoegen":
-            st.write("**📝 Voer de gegevens van het nieuwe object in:**")
-            n_id = st.text_input("Uniek ID Nummer (bijv. PL-001):", value=st.session_state['form_id']).strip()
+               elif modus == "Object Gegevens Wijzigen of Verwijderen" and not df_actueel.empty:
+            st.write("✏️ **Corrigeer typefouten of verwijder een object permanent**")
+            id_opties = ["Kies een ID nummer..."] + gesorteerde_ids
+            id_keuze = st.selectbox("Selecteer het te corrigeren ID nummer:", id_opties, index=0)
             
-            type_opties = ["Kies een type hijsmiddel... ", "--- Handmatig nieuw type invoeren ---"] + bekende_types
-            gekozen_type = st.selectbox("Type selecteren:", type_opties, key=f"sb_type_{st.session_state['reset_counter']}")
-            handmatig_type = st.text_input("Indien nieuw type, typ hier de benaming:", value=st.session_state['form_handmat_type'])
-            def_type = handmatig_type.strip() if gekozen_type == "--- Handmatig nieuw type invoeren ---" else gekozen_type
-            if gekozen_type == "Kies een type hijsmiddel... ": def_type = ""
-            
-            loc_opties = ["Kies een locatie... ", "--- Handmatig nieuwe locatie invoeren ---"] + bekende_locaties
-            gekozen_loc = st.selectbox("Locatie / Vlootnummer selecteren:", loc_opties, key=f"sb_loc_{st.session_state['reset_counter']}")
-            handmatig_loc = st.text_input("Indien nieuwe locatie, typ hier het vlootnummer:", value=st.session_state['form_handmat_loc'])
-            def_loc = handmatig_loc.strip() if gekozen_loc == "--- Handmatig nieuwe locatie invoeren ---" else gekozen_loc
-            if gekozen_loc == "Kies een locatie... ": def_loc = ""
-            
-            st.write("---")
-            st.write("**📅 Datums invoeren:**")
-            
-            k_l_dt = st.date_input("Laatste Keuringsdatum:", vandaag, format="DD-MM-YYYY")
-            v_keur_calc = (k_l_dt + timedelta(days=365)).strftime("%d-%m-%Y")
-            st.info(f"💡 Volgende keuringsdatum wordt automatisch: **{v_keur_calc}**")
-            
-            heeft_bep = st.checkbox("⚖️ Dit object heeft ook een Beproeving (bijv. Ketting/Staal)", key="chk_bep_nieuw")
-            def_l_bep, def_v_bep = "-", "-"
-            beproevings_fout = False
-            
-            if heeft_bep:
-                b_l_dt = st.date_input("Laatste Beprevingsdatum:", vandaag, format="DD-MM-YYYY")
-                i_keuze = st.selectbox("Beproevingsinterval:", INTERVALS)
-                def_l_bep = b_l_dt.strftime("%d-%m-%Y")
-                if "Geen" in i_keuze:
-                    beproevings_fout = True
-                else:
-                    dagen = 365 if "1 jaar" in i_keuze else 4*365
-                    def_v_bep = (b_l_dt + timedelta(days=dagen)).strftime("%d-%m-%Y")
-                    st.info(f"💡 Volgende beproevingsdatum wordt automatisch: **{def_v_bep}**")
-            
-            st.session_state['form_id'] = n_id
-            st.session_state['form_handmat_type'] = handmatig_type
-            st.session_state['form_handmat_loc'] = handmatig_loc
-            
-            if st.button("💾 Object Opslaan"):
-                id_bestaat_al = False
-                if not df_actueel.empty and 'id' in df_actueel.columns:
-                    id_bestaat_al = n_id in df_actueel['id'].astype(str).str.strip().tolist()
-                
-                if not (n_id and def_type and def_loc):
-                    st.error("❌ ID, Type en Locatie zijn verplicht!")
-                elif id_bestaat_al:
-                    st.error(f"❌ Het ID nummer '{n_id}' bestaat al!")
-                elif beproevings_fout:
-                    st.error("❌ Je hebt aangegeven dat het object beproefd is, maar geen interval gekozen!")
-                else:
-                    nieuwe_rij = pd.DataFrame([{'id': n_id, 'type': def_type, 'locatie': def_loc, 'laatste_keuring': k_l_dt.strftime("%d-%m-%Y"), 'volgende_keuring': v_keur_calc, 'laatste_beproeving': def_l_bep, 'volgende_beproeving': def_v_bep, 'status': 'Actief'}])
-                    df_actueel = pd.concat([df_actueel, nieuwe_rij], ignore_index=True)
-                    nu_log = pd.DataFrame([{'datum': datetime.now().strftime("%d-%m-%Y %H:%M"), 'object_id': n_id, 'type': def_type, 'actie': 'Aangemaakt', 'details': 'Admin'}])
-                    df_historie = pd.concat([df_historie, nu_log], ignore_index=True)
+            if id_keuze != "Kies een ID nummer...":
+                masker = df_actueel['id'] == id_keuze
+                if masker.any():
+                    h_id = str(df_actueel.loc[masker, 'id'].values[0])
+                    h_type = str(df_actueel.loc[masker, 'type'].values[0])
+                    h_loc = str(df_actueel.loc[masker, 'locatie'].values[0])
                     
-                    st.session_state['df_actueel'] = df_actueel
-                    st.session_state['df_historie'] = df_historie
-                    sla_data_op(df_actueel, df_historie)
+                    c_id = st.text_input("Aanpassen ID Nummer:", h_id)
+                    c_type = st.text_input("Aanpassen Type omschrijving:", h_type)
+                    c_loc = st.text_input("Aanpassen Locatie / Vlootnummer:", h_loc)
                     
-                    st.session_state['form_id'] = ""
-                    st.session_state['form_handmat_type'] = ""
-                    st.session_state['form_handmat_loc'] = ""
-                    st.session_state['reset_counter'] += 1
+                    st.write("---")
+                    bevestig = st.checkbox("⚠️ Ik weet zeker dat ik dit object wilt wijzigen of permanent wissen.")
                     
-                    st.success("🎉 Succesvol toegevoegd!")
-                    st.rerun()
+                    kol1, kol2 = st.columns(2)
+                    with kol1:
+                        if st.button("💾 Wijzigingen Opslaan"):
+                            if bevestig:
+                                df_actueel.loc[masker, 'id'] = c_id
+                                df_actueel.loc[masker, 'type'] = c_type
+                                df_actueel.loc[masker, 'locatie'] = c_loc
+                                nu_log = pd.DataFrame([{'datum': datetime.now().strftime("%d-%m-%Y %H:%M"), 'object_id': c_id, 'type': c_type, 'actie': 'Gegevens handmatig gecorrigeerd', 'details': 'Admin'}])
+                                df_historie = pd.concat([df_historie, nu_log], ignore_index=True)
+                                
+                                st.session_state['df_actueel'] = df_actueel
+                                st.session_state['df_historie'] = df_historie
+                                sla_data_op(df_actueel, df_historie)
+                                st.success("✅ Gegevens succesvol aangepast!"); st.rerun()
+                            else: st.error("❌ Vink eerst het vakje aan.")
+                    with kol2:
+                        if st.button("🗑️ Permanent VERWIJDEREN"):
+                            if bevestig:
+                                df_actueel = df_actueel[df_actueel['id'] != id_keuze]
+                                nu_log = pd.DataFrame([{'datum': datetime.now().strftime("%d-%m-%Y %H:%M"), 'object_id': id_keuze, 'type': h_type, 'actie': 'Object permanent gewist', 'details': 'Admin'}])
+                                df_historie = pd.concat([df_historie, nu_log], ignore_index=True)
+                                
+                                st.session_state['df_actueel'] = df_actueel
+                                st.session_state['df_historie'] = df_historie
+                                sla_data_op(df_actueel, df_historie)
+                                st.warning("🗑️ Object permanent verwijderd!"); st.rerun()
+                            else: st.error("❌ Vink eerst het vakje aan.")
+            else: st.info("ℹ️ Selecteer hierboven een ID nummer.")
+    else:
+        st.info("ℹ️ **Alleen-lezen modus actief.** Voer bovenaan het admin-wachtwoord in om mutaties door te voeren.")
+
+with rechts:
+    st.subheader("📊 Overzichten (Alleen Lezen)")
+    zoek = st.text_input("🔍 Snel zoeken (typ ID, type of auto):", key="z_uniek")
+    
+    # Maak een kopie voor weergave
+    df_g = df_actueel.copy()
+    
+    # Filter eventuele volledig lege rijen eruit
+    if not df_g.empty and 'id' in df_g.columns:
+        df_g = df_g[df_g['id'].astype(str).str.strip() != ""]
+        
+    if zoek and not df_g.empty:
+        df_g = df_g[df_g['id'].astype(str).str.contains(zoek, case=False) | df_g['type'].astype(str).str.contains(zoek, case=False) | df_g['locatie'].astype(str).str.contains(zoek, case=False)]
+    
+    t1, t2, t3, t4, t5 = st.tabs(["Actuele Status", "Archief / Vermist", "Locatie Grafiek (Interactief)", "Aantallen per Type", "Volledige Historie"])
+    vaste_kolommen = ['id', 'type', 'locatie', 'laatste_keuring', 'volgende_keuring', 'Keur_Status', 'laatste_beproeving', 'volgende_beproeving', 'Beproef_Status', 'status']
+    
+    with t1:
+        # Toon simpelweg alle objecten die NIET gearchiveerd of vermist zijn
+        if not df_g.empty:
+            df_r = df_g[~df_g['status'].isin(["Afgekeurd (Gearchiveerd)", "Niet gevonden (Vermist)"])]
+            if not df_r.empty:
+                st.dataframe(df_r[vaste_kolommen], hide_index=True, use_container_width=True, height=400)
+            else:
+                st.info("Geen actieve objecten gevonden.")
+        else:
+            st.info("De database is momenteel helemaal leeg. Voeg links een object toe.")
+            
+        st.write("")
+        out_stream = io.BytesIO()
+        with pd.ExcelWriter(out_stream, engine='openpyxl') as w: 
+            df_actueel.to_excel(w, sheet_name='actueel', index=False)
+            df_historie.to_excel(w, sheet_name='historie', index=False)
+        st.download_button(label="📥 Download Volledige Database Back-up (Excel .xlsx)", data=out_stream.getvalue(), file_name=f"hijsmiddelen_backup_{datetime.now().strftime('%d-%m-%Y')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="btn_xlsx_backup")
+        
+    with t2:
+        if not df_g.empty:
+            df_a = df_g[df_g['status'].isin(["Afgekeurd (Gearchiveerd)", "Niet gevonden (Vermist)"])]
+            if not df_a.empty:
+                st.dataframe(df_a[vaste_kolommen], hide_index=True, use_container_width=True, height=400)
+                fig_a = px.bar(df_a, x='type', color='status', hover_data=['id', 'type', 'status'], labels={'type': 'Type Hijsmiddel', 'status': 'Status', 'count': 'Aantal middelen'}, title="Overzicht van afgekeurde en vermiste middelen")
+                st.plotly_chart(fig_a, use_container_width=True)
+            else: st.info("Het archief is momenteel leeg.")
+        else: st.info("Het archief is momenteel leeg.")
+        
+    with t3:
+        if not df_actueel.empty and 'status' in df_actueel.columns:
+            st.write("**Aantal actieve hijsmiddelen per locatie (Vlootnummer):**")
+            df_actief = df_actueel[~df_actueel['status'].isin(["Afgekeurd (Gearchiveerd)", "Niet gevonden (Vermist)"]) & (df_actueel['id'].astype(str).str.strip() != "")]
+            if not df_actief.empty:
+                fig = px.bar(df_actief, x='locatie', color='type', hover_data=['id', 'type'], labels={'locatie': 'Locatie / Vlootnummer', 'count': 'Aantal middelen', 'type': 'Producttype'}, title="Materiële bezetting per auto")
+                st.plotly_chart(fig, use_container_width=True)
+                st.write(df_actief['locatie'].value_counts())
+        else: st.info("Geen data beschikbaar voor de grafiek.")
+        
+    with t4:
+        st.write("📋 **Totaaloverzicht van alle unieke types hijsmiddelen in het bedrijf:**")
+        df_types_filtered = df_actueel[df_actueel['id'].astype(str).str.strip() != ""].copy() if not df_actueel.empty else pd.DataFrame()
+        if not df_types_filtered.empty and 'type' in df_types_filtered.columns:
+            df_type_counts = df_types_filtered['type'].value_counts().reset_index()
+            df_type_counts.columns = ['Type Omschrijving', 'Totaal in bezit (Aantal)']
+            st.dataframe(df_type_counts, hide_index=True, use_container_width=True, height=400)
+        else: st.info("Geen data beschikbaar.")
+            
+    with t5:
+        st.dataframe(df_historie.sort_index(ascending=False), use_container_width=True, hide_index=True, height=400)
+
 
 
