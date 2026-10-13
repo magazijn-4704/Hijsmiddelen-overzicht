@@ -84,21 +84,22 @@ col2.metric("🔴 Verlopen Keuringen", len(df_ct[df_ct['Keur_Status'] == "🔴 V
 col3.metric("🔴 Verlopen Beproevingen", len(df_ct[df_ct['Beproef_Status'] == "🔴 Verlopen"]) if not df_ct.empty else 0)
 col4.metric("⚠️ Vermist Materieel", len(df_actueel[df_actueel['status'] == "Niet gevonden (Vermist)"]) if not df_actueel.empty and 'status' in df_actueel.columns else 0)
 
-# TYPES EN LOCATIES OPHALEN EN OPLOPEND SORTEREN
-bekende_types = sorted(list(set(df_actueel['type'].dropna().tolist()))) if not df_actueel.empty and 'type' in df_actueel.columns else []
-bekende_types = [t for t in bekende_types if str(t).strip() not in ["", "Kies een type hijsmiddel... ", "--- Handmatig nieuw type invoeren ---"]]
+# TYPES EN LOCATIES OPHALEN EN SCHOONMAKEN VOOR DE LIJSTEN
+bekende_types = list(set(df_actueel['type'].dropna().tolist())) if not df_actueel.empty and 'type' in df_actueel.columns else []
+bekende_types = [str(t).strip() for t in bekende_types if str(t).strip() not in ["", "nan", "Kies een type hijsmiddel... ", "--- Handmatig nieuw type invoeren ---"]]
 
 database_locaties = list(set(df_actueel['locatie'].dropna().tolist())) if not df_actueel.empty and 'locatie' in df_actueel.columns else []
-database_locaties = [l for l in database_locaties if str(l).strip() not in ["", "Kies een locatie... ", "--- Handmatig nieuwe locatie invoeren ---", "Gearchiveerd", "Vermist"]]
+database_locaties = [str(l).strip() for l in database_locaties if str(l).strip() not in ["", "nan", "Kies een locatie... ", "--- Handmatig nieuwe locatie invoeren ---", "Gearchiveerd", "Vermist"]]
 
 for standaard_loc in ['Magazijn A', 'Magazijn D', 'Voertuig 316', 'Voertuig 317', 'Werkplaats']:
     if standaard_loc not in database_locaties:
         database_locaties.append(standaard_loc)
 
-bekende_locaties = sorted(database_locaties)
+bekende_locaties = database_locaties
 
 gesorteerde_ids = sorted(df_actueel['id'].dropna().tolist()) if not df_actueel.empty and 'id' in df_actueel.columns else []
 gesorteerde_ids = [str(x) for x in gesorteerde_ids if str(x).strip() != ""]
+
 
 #Deel 2a
 
@@ -132,11 +133,11 @@ with links:
         INTERVALS = ["Geen beproeving (Textiel)", "Jaarlijks (1 jaar)", "Om de 4 jaar (Staal)"]
         STATUS_OPTIES = ["Actief", "Afgekeurd (Gearchiveerd)", "Niet gevonden (Vermist)"]
 
-#deel 2b
+#Deel 2b
 
         if modus == "Bestaand Object Bewerken" and not df_actueel.empty and 'id' in df_actueel.columns:
             sel_ids = st.multiselect("Stap 1: Kies ID-nummers:", gesorteerde_ids, default=st.session_state['bew_ids'], key="m_sel")
-            n_loc_keuze = st.selectbox("Verplaats naar locatie:", ["Geen wijziging"] + bekende_locaties + ["Gearchiveerd", "Vermist"])
+            n_loc_keuze = st.selectbox("Verplaats naar locatie:", ["Geen wijziging"] + sorted(list(set(bekende_locaties))) + ["Gearchiveerd", "Vermist"])
             n_stat = st.selectbox("Wijzig status naar:", ["Geen wijziging"] + STATUS_OPTIES)
             
             st.write("**Stap 2: Nieuwe Keuring / Beproeving registreren**")
@@ -203,11 +204,11 @@ with links:
 
 #Deel 2c
 
-               elif modus == "Nieuw Object Toevoegen":
+        elif modus == "Nieuw Object Toevoegen":
             st.write("**📝 Voer de gegevens van het nieuwe object in:**")
             n_id = st.text_input("Uniek ID Nummer (bijv. PL-001):", value=st.session_state['form_id']).strip()
             
-            # --- GEFORCEERDE DIRECTE LIVE-SORTERING VAN DE TYPES ---
+            # --- LIVE ALFABETISCHE SORTERING VAN DE TYPES ---
             schone_types = [str(t).strip() for t in bekende_types if str(t).strip() not in ["", "nan"]]
             type_opties = ["Kies een type hijsmiddel... ", "--- Handmatig nieuw type invoeren ---"] + sorted(list(set(schone_types)))
             gekozen_type = st.selectbox("Type selecteren:", type_opties, key=f"sb_type_{st.session_state['reset_counter']}")
@@ -215,7 +216,7 @@ with links:
             def_type = handmatig_type.strip() if gekozen_type == "--- Handmatig nieuw type invoeren ---" else gekozen_type
             if gekozen_type == "Kies een type hijsmiddel... ": def_type = ""
             
-            # --- GEFORCEERDE DIRECTE LIVE-SORTERING VAN DE LOCATIES ---
+            # --- LIVE ALFABETISCHE SORTERING VAN DE LOCATIES ---
             schone_locaties = [str(l).strip() for l in bekende_locaties if str(l).strip() not in ["", "nan", "Gearchiveerd", "Vermist"]]
             loc_opties = ["Kies een locatie... ", "--- Handmatig nieuwe locatie invoeren ---"] + sorted(list(set(schone_locaties)))
             gekozen_loc = st.selectbox("Locatie / Vlootnummer selecteren:", loc_opties, key=f"sb_loc_{st.session_state['reset_counter']}")
@@ -278,8 +279,7 @@ with links:
                     st.success("🎉 Succesvol toegevoegd!")
                     st.rerun()
 
-
-#Deel 2d
+#DEel 2d
 
         elif modus == "Object Gegevens Wijzigen of Verwijderen" and not df_actueel.empty:
             st.write("✏️ **Corrigeer typefouten of verwijder een object permanent**")
@@ -330,6 +330,8 @@ with links:
             else: st.info("ℹ️ Selecteer hierboven een ID nummer.")
     else:
         st.info("ℹ️ **Alleen-lezen modus actief.** Voer bovenaan het admin-wachtwoord in om mutaties door te voeren.")
+
+#Deel 2e
 
 with rechts:
     st.subheader("📊 Overzichten (Alleen Lezen)")
