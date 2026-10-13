@@ -1,3 +1,5 @@
+#Deel 1
+
 import streamlit as st
 import pandas as pd
 import os
@@ -70,8 +72,6 @@ else:
     df_actueel['Keur_Status'] = pd.Series(dtype='str', index=df_actueel.index)
     df_actueel['Beproef_Status'] = pd.Series(dtype='str', index=df_actueel.index)
 
-#Deel 2
-
 st.set_page_config(layout="wide", page_title="Hijsmiddelen Beheer")
 st.title("🏗️ Centraal Hijsmiddelen Dashboard")
 
@@ -84,29 +84,23 @@ col2.metric("🔴 Verlopen Keuringen", len(df_ct[df_ct['Keur_Status'] == "🔴 V
 col3.metric("🔴 Verlopen Beproevingen", len(df_ct[df_ct['Beproef_Status'] == "🔴 Verlopen"]) if not df_ct.empty else 0)
 col4.metric("⚠️ Vermist Materieel", len(df_actueel[df_actueel['status'] == "Niet gevonden (Vermist)"]) if not df_actueel.empty and 'status' in df_actueel.columns else 0)
 
-# ==================== VOLLEDIG GEFIXTE EN OPLOPEND GESORTEERDE DROPDOWNS ====================
+# TYPES EN LOCATIES OPHALEN EN OPLOPEND SORTEREN
+bekende_types = sorted(list(set(df_actueel['type'].dropna().tolist()))) if not df_actueel.empty and 'type' in df_actueel.columns else []
+bekende_types = [t for t in bekende_types if str(t).strip() not in ["", "Kies een type hijsmiddel... ", "--- Handmatig nieuw type invoeren ---"]]
 
-# 1. TYPES OPHALEN EN OPLOPEND SORTEREN (A-Z)
-database_types = list(set(df_actueel['type'].dropna().tolist())) if not df_actueel.empty and 'type' in df_actueel.columns else []
-database_types = [t for t in database_types if str(t).strip() not in ["", "Kies een type hijsmiddel... ", "--- Handmatig nieuw type invoeren ---"]]
-bekende_types = sorted(database_types) # <-- Sorteert de types netjes van A tot Z
-
-# 2. LOCATIES OPHALEN EN OPLOPEND SORTEREN (A-Z)
 database_locaties = list(set(df_actueel['locatie'].dropna().tolist())) if not df_actueel.empty and 'locatie' in df_actueel.columns else []
 database_locaties = [l for l in database_locaties if str(l).strip() not in ["", "Kies een locatie... ", "--- Handmatig nieuwe locatie invoeren ---", "Gearchiveerd", "Vermist"]]
 
-# Vaste basislocaties toevoegen als ze nog niet in de lijst staan
 for standaard_loc in ['Magazijn A', 'Magazijn D', 'Voertuig 316', 'Voertuig 317', 'Werkplaats']:
     if standaard_loc not in database_locaties:
         database_locaties.append(standaard_loc)
 
-# Sorteer de uiteindelijke locatielijst nu gegarandeerd oplopend (A-Z)
 bekende_locaties = sorted(database_locaties)
-
-# ============================================================================================
 
 gesorteerde_ids = sorted(df_actueel['id'].dropna().tolist()) if not df_actueel.empty and 'id' in df_actueel.columns else []
 gesorteerde_ids = [str(x) for x in gesorteerde_ids if str(x).strip() != ""]
+
+#Deel 2a
 
 links, rechts = st.columns([1, 2.3])
 
@@ -137,7 +131,9 @@ with links:
         
         INTERVALS = ["Geen beproeving (Textiel)", "Jaarlijks (1 jaar)", "Om de 4 jaar (Staal)"]
         STATUS_OPTIES = ["Actief", "Afgekeurd (Gearchiveerd)", "Niet gevonden (Vermist)"]
-        
+
+#deel 2b
+
         if modus == "Bestaand Object Bewerken" and not df_actueel.empty and 'id' in df_actueel.columns:
             sel_ids = st.multiselect("Stap 1: Kies ID-nummers:", gesorteerde_ids, default=st.session_state['bew_ids'], key="m_sel")
             n_loc_keuze = st.selectbox("Verplaats naar locatie:", ["Geen wijziging"] + bekende_locaties + ["Gearchiveerd", "Vermist"])
@@ -205,21 +201,18 @@ with links:
                         st.rerun()
                 else: st.error("❌ Kies minimaal één ID.")
 
+#Deel 2c
 
-#Deel 3a
-
-               elif modus == "Nieuw Object Toevoegen":
+        elif modus == "Nieuw Object Toevoegen":
             st.write("**📝 Voer de gegevens van het nieuwe object in:**")
             n_id = st.text_input("Uniek ID Nummer (bijv. PL-001):", value=st.session_state['form_id']).strip()
             
-            # --- GEFORCEERDE ALFABETISCHE SORTERING RECHTSTREEKS IN DE DROPDOWN ---
             type_opties = ["Kies een type hijsmiddel... ", "--- Handmatig nieuw type invoeren ---"] + sorted(list(set(bekende_types)))
             gekozen_type = st.selectbox("Type selecteren:", type_opties, key=f"sb_type_{st.session_state['reset_counter']}")
             handmatig_type = st.text_input("Indien nieuw type, typ hier de benaming:", value=st.session_state['form_handmat_type'])
             def_type = handmatig_type.strip() if gekozen_type == "--- Handmatig nieuw type invoeren ---" else gekozen_type
             if gekozen_type == "Kies een type hijsmiddel... ": def_type = ""
             
-            # --- GEFORCEERDE ALFABETISCHE SORTERING RECHTSTREEKS IN DE DROPDOWN ---
             loc_opties = ["Kies een locatie... ", "--- Handmatig nieuwe locatie invoeren ---"] + sorted(list(set(bekende_locaties)))
             gekozen_loc = st.selectbox("Locatie / Vlootnummer selecteren:", loc_opties, key=f"sb_loc_{st.session_state['reset_counter']}")
             handmatig_loc = st.text_input("Indien nieuwe locatie, typ hier het vlootnummer:", value=st.session_state['form_handmat_loc'])
@@ -273,7 +266,6 @@ with links:
                     st.session_state['df_historie'] = df_historie
                     sla_data_op(df_actueel, df_historie)
                     
-                    # HARD RESET VAN ALLE INPUTS EN DROPDOWNS
                     st.session_state['form_id'] = ""
                     st.session_state['form_handmat_type'] = ""
                     st.session_state['form_handmat_loc'] = ""
@@ -282,8 +274,7 @@ with links:
                     st.success("🎉 Succesvol toegevoegd!")
                     st.rerun()
 
-
-#Deel 3b
+#Deel 2d
 
         elif modus == "Object Gegevens Wijzigen of Verwijderen" and not df_actueel.empty:
             st.write("✏️ **Corrigeer typefouten of verwijder een object permanent**")
