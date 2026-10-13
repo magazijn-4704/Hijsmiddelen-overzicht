@@ -84,20 +84,26 @@ col2.metric("🔴 Verlopen Keuringen", len(df_ct[df_ct['Keur_Status'] == "🔴 V
 col3.metric("🔴 Verlopen Beproevingen", len(df_ct[df_ct['Beproef_Status'] == "🔴 Verlopen"]) if not df_ct.empty else 0)
 col4.metric("⚠️ Vermist Materieel", len(df_actueel[df_actueel['status'] == "Niet gevonden (Vermist)"]) if not df_actueel.empty and 'status' in df_actueel.columns else 0)
 
-# TYPES EN LOCATIES OPHALEN EN OPLOPEND SORTEREN
-bekende_types = sorted(list(set(df_actueel['type'].dropna().tolist()))) if not df_actueel.empty and 'type' in df_actueel.columns else []
-bekende_types = [t for t in bekende_types if str(t).strip() not in ["", "Kies een type hijsmiddel... ", "--- Handmatig nieuw type invoeren ---"]]
+# ==================== VOLLEDIG GEFIXTE EN OPLOPEND GESORTEERDE DROPDOWNS ====================
 
+# 1. TYPES OPHALEN EN OPLOPEND SORTEREN (A-Z)
+database_types = list(set(df_actueel['type'].dropna().tolist())) if not df_actueel.empty and 'type' in df_actueel.columns else []
+database_types = [t for t in database_types if str(t).strip() not in ["", "Kies een type hijsmiddel... ", "--- Handmatig nieuw type invoeren ---"]]
+bekende_types = sorted(database_types) # <-- Sorteert de types netjes van A tot Z
+
+# 2. LOCATIES OPHALEN EN OPLOPEND SORTEREN (A-Z)
 database_locaties = list(set(df_actueel['locatie'].dropna().tolist())) if not df_actueel.empty and 'locatie' in df_actueel.columns else []
 database_locaties = [l for l in database_locaties if str(l).strip() not in ["", "Kies een locatie... ", "--- Handmatig nieuwe locatie invoeren ---", "Gearchiveerd", "Vermist"]]
 
-# Vaste basislocaties toevoegen
+# Vaste basislocaties toevoegen als ze nog niet in de lijst staan
 for standaard_loc in ['Magazijn A', 'Magazijn D', 'Voertuig 316', 'Voertuig 317', 'Werkplaats']:
     if standaard_loc not in database_locaties:
         database_locaties.append(standaard_loc)
 
-# HIER WORDT DE DROPDOWN LIJST ECHT OPLOPEND GESORTEERD
+# Sorteer de uiteindelijke locatielijst nu gegarandeerd oplopend (A-Z)
 bekende_locaties = sorted(database_locaties)
+
+# ============================================================================================
 
 gesorteerde_ids = sorted(df_actueel['id'].dropna().tolist()) if not df_actueel.empty and 'id' in df_actueel.columns else []
 gesorteerde_ids = [str(x) for x in gesorteerde_ids if str(x).strip() != ""]
@@ -112,7 +118,6 @@ with links:
     if 'form_handmat_type' not in st.session_state: st.session_state['form_handmat_type'] = ""
     if 'form_handmat_loc' not in st.session_state: st.session_state['form_handmat_loc'] = ""
     
-    # Reset counter initialiseren (deze zorgt voor de veilige reset van de dropdowns)
     if 'reset_counter' not in st.session_state: st.session_state['reset_counter'] = 0
     if 'bew_ids' not in st.session_state: st.session_state['bew_ids'] = []
 
@@ -199,6 +204,7 @@ with links:
                         st.success("✅ Wijzigingen succesvol doorgevoerd!")
                         st.rerun()
                 else: st.error("❌ Kies minimaal één ID.")
+
 
 #Deel 3a
 
