@@ -76,7 +76,7 @@ bekende_types = [t for t in bekende_types if str(t).strip() != ""]
 bekende_locaties = sorted(list(set(df_actueel['locatie'].dropna().tolist()))) if not df_actueel.empty and 'locatie' in df_actueel.columns else []
 bekende_locaties = [l for l in bekende_locaties if str(l).strip() != ""]
 
-for standaard_loc in ['Magazijn A', 'Auto 314', 'Auto 316', 'Auto 317', 'Werkplaats']:
+for standaard_loc in ['Magazijn A', 'Magazijn D', 'Voertuig 316', 'Voertuig 317', 'Werkplaats']:
     if standaard_loc not in bekende_locaties:
         bekende_locaties.append(standaard_loc)
 bekende_locaties = sorted(bekende_locaties)
